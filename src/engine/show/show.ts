@@ -158,12 +158,14 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
           onset,
           beatIndex: analysis.beatIndexAt(t),
           beatPhase: analysis.beatPhaseAt(t),
+          beatInterval: analysis.beatIntervalSeconds,
         },
         {
           lasers: params.lasers,
           wall: params.wall,
           particles: params.particles,
           lightning: params.lightning,
+          bursts: params.bursts,
         },
         camera,
       )

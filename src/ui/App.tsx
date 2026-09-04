@@ -334,6 +334,22 @@ export const App = (): JSX.Element => {
             }}
           />
           <Toggle
+            name="爆発・火花"
+            value={p.bursts.enabled}
+            onChange={(v) => {
+              patch({ bursts: { enabled: v } })
+            }}
+          />
+          <Slider
+            name="バースト強度"
+            value={p.bursts.intensity}
+            min={0}
+            max={3}
+            onChange={(v) => {
+              patch({ bursts: { intensity: v } })
+            }}
+          />
+          <Toggle
             name="パーティクル"
             value={p.particles.enabled}
             onChange={(v) => {

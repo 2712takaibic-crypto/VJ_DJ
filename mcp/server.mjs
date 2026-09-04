@@ -251,6 +251,25 @@ server.registerTool(
   },
 )
 
+server.registerTool(
+  'set_bursts',
+  {
+    title: '爆発・火花を調整',
+    description:
+      '小節頭で弾けるパーティクルバースト。' +
+      '3D_GamingSystem の fx-editor プリセット (explosion / spark) 由来。' +
+      'intensity を上げると発生頻度と明るさが上がる。',
+    inputSchema: {
+      enabled: z.boolean().optional(),
+      intensity: z.number().min(0).max(3).optional(),
+    },
+  },
+  async (args) => {
+    const state = await call('/params', { bursts: args })
+    return { content: [{ type: 'text', text: JSON.stringify(state.params.bursts, null, 2) }] }
+  },
+)
+
 // ---------------------------------------------------------------- 素材
 
 server.registerTool(

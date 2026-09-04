@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { float, uniform, uv, vec2, vec3 } from 'three/tsl'
 import { createLaserRig, type LaserRig } from './lasers'
+import { createBurstField, EXPLOSION, SPARK, type BurstField } from './bursts'
 import { createLightningRig, type LightningRig } from './lightning'
 import { createParticleField, type ParticleField } from './particles'
 
@@ -29,6 +30,8 @@ export type StageAudio = {
   readonly beatIndex: number
   /** 拍内の位相 0〜1 */
   readonly beatPhase: number
+  /** 1 拍の秒数。バーストの寿命計算に使う */
+  readonly beatInterval: number
 }
 
 export type StageControls = {
@@ -36,6 +39,7 @@ export type StageControls = {
   readonly wall: { readonly hue: number; readonly hueRange: number; readonly brightness: number }
   readonly particles: { readonly enabled: boolean; readonly intensity: number }
   readonly lightning: { readonly enabled: boolean; readonly intensity: number }
+  readonly bursts: { readonly enabled: boolean; readonly intensity: number }
 }
 
 export type Stage = {
@@ -154,6 +158,18 @@ export const createStage = (): Stage => {
   const lightning: LightningRig = createLightningRig()
   root.add(lightning.object)
 
+  // fx-editor の explosion / spark プリセットを参考にしたバースト
+  const explosions: BurstField = createBurstField({ style: EXPLOSION, slots: 3, everyBeats: 8 })
+  root.add(explosions.object)
+  const sparks: BurstField = createBurstField({
+    style: SPARK,
+    slots: 4,
+    everyBeats: 4,
+    spread: 9,
+    height: 2.2,
+  })
+  root.add(sparks.object)
+
   // ---------- 照明 ----------
   const ambient = new THREE.AmbientLight(0x2c3a58, 0.7)
   root.add(ambient)
@@ -226,6 +242,18 @@ export const createStage = (): Stage => {
         particles.update(t, audio.rms * controls.particles.intensity)
       }
 
+      const burstsOn = controls.bursts.enabled
+      explosions.object.visible = burstsOn
+      sparks.object.visible = burstsOn
+      if (burstsOn) {
+        const burstEnergy = Math.min(
+          1,
+          (audio.rms * 0.7 + audio.onset * 0.5) * controls.bursts.intensity,
+        )
+        explosions.update(audio.beatIndex, audio.beatPhase, audio.beatInterval, burstEnergy, camera)
+        sparks.update(audio.beatIndex, audio.beatPhase, audio.beatInterval, burstEnergy, camera)
+      }
+
       lightning.object.visible = controls.lightning.enabled
       if (controls.lightning.enabled) {
         lightning.update(
@@ -249,6 +277,8 @@ export const createStage = (): Stage => {
       lasers.dispose()
       particles.dispose()
       lightning.dispose()
+      explosions.dispose()
+      sparks.dispose()
       for (const resource of owned) resource.dispose()
       owned.length = 0
     },

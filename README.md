@@ -11,7 +11,7 @@
 |---|---|
 | グリーンバックのクロマキー合成 | ✅ CbCr 距離方式 + チョーク + デスピル |
 | 3D ステージ (WebGPU) | ✅ LEDウォール / トラス / 床グリッド / 照明 |
-| 舞台演出 | ✅ レーザービーム / 電撃 / パーティクル / bloom |
+| 舞台演出 | ✅ レーザー / 電撃 / 爆発・火花 / パーティクル / bloom |
 | 音楽同期 | ✅ BPM・ビートグリッド・帯域別エンベロープに追従 |
 | mp4 書き出し | ✅ 決定的なオフラインレンダリング + 音声多重化 |
 | MCP からの操作 | ✅ AI が画を見ながら調整できる |
@@ -85,7 +85,7 @@ VJDJ を起動した状態で、プロンプトで指示できる。
 次の調整を決められる。画を見ずにパラメータを触っても意図した絵にはならない。
 
 提供ツール: `get_state` `capture` `set_chroma` `set_performer` `set_bloom`
-`set_lasers` `set_lightning` `set_wall` `set_camera` `set_particles`
+`set_lasers` `set_lightning` `set_bursts` `set_wall` `set_camera` `set_particles`
 `set_video_source` `set_audio_source` `seek` `set_playing`
 
 ## 開発

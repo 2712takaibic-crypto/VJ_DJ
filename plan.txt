@@ -45,20 +45,19 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
  ・UnrealBloom 相当のポストプロセス (TSL版 bloom)
  ・レーザービーム
  ・電撃エフェクト
+ ・爆発・火花のバースト (fx-editor プリセット由来)
  ・パーティクル
  ・LEDウォール / トラス / 床グリッド / ステージ照明
  ・音楽同期 (BPM 130.009 / ビートグリッド / 帯域別エンベロープ)
  ・カメラワーク (4小節ごとのショット切り替え)
  ・mp4書き出し (決定的レンダリング。実時間より速い)
+ ・fx-editor の手続き的テクスチャの移植 (soft/glow/ring/spark 等)
  ・MCP経由でのAI操作 (画を見ながら調整できる)
  ・人間向けUI (プレビュー / トランスポート / パラメータ操作 / 素材ライブラリ)
  ・汎用のメディア取り込み (任意の音声/映像を取り込んで差し替え)
 
 ■ 未実装 (ツール完成に必要)
 
- ・3D_GamingSystem の fx-editor 素材の取り込み
-   (beam_exp / electric_beam / electric_bolt / explosion /
-    spark / thunder_effect / totem など)
  ・DJ機能一式 (サンプリング、ミキシング)
  ・DAW機能 (打ち込み、シーケンサー)
 
