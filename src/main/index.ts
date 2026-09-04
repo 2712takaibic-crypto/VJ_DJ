@@ -1,5 +1,15 @@
+import { writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, session } from 'electron'
+import {
+  allowMediaRoot,
+  defaultMediaRoots,
+  handleMediaProtocol,
+  registerMediaScheme,
+} from './media/protocol'
 import { createWindowManager, type WindowManager } from './windows/manager'
+
+// app.whenReady() より前に呼ぶ必要がある
+registerMediaScheme()
 
 /**
  * Web MIDI は既定で拒否されるため明示的に許可する (設計書 §2.2.14)。
@@ -53,8 +63,35 @@ const runSelfTest = async (windows: WindowManager): Promise<number> => {
   }
 }
 
+/**
+ * VJDJ_CAPTURE=<出力パス> のとき、Engine Host の画をファイルに書き出して終了する。
+ *
+ * 画作りは数値では判断できない。実際の画を見ずにパラメータを調整するのは
+ * 目をつぶって色を選ぶようなもので、クロマキーの閾値や構図の追い込みには
+ * 画を確認する手段が必須になる。
+ */
+const runCapture = async (windows: WindowManager, outputPath: string): Promise<number> => {
+  const waitMs = Number(process.env['VJDJ_CAPTURE_DELAY_MS'] ?? '6000')
+  await new Promise((resolve) => setTimeout(resolve, waitMs))
+
+  try {
+    const image = await windows.engine.webContents.capturePage()
+    const png = image.toPNG()
+    await writeFile(outputPath, png)
+    const size = image.getSize()
+    console.log(`CAPTURE OK ${outputPath} ${size.width}x${size.height} ${png.length} bytes`)
+    return 0
+  } catch (error) {
+    console.error(`CAPTURE FAIL ${error instanceof Error ? error.message : String(error)}`)
+    return 1
+  }
+}
+
 void app.whenReady().then(async () => {
   configurePermissions()
+
+  handleMediaProtocol()
+  for (const root of defaultMediaRoots()) allowMediaRoot(root)
 
   const windows = createWindowManager()
 
@@ -63,6 +100,14 @@ void app.whenReady().then(async () => {
       `[main] display ${String(display.id)} ${String(display.bounds.width)}x${String(display.bounds.height)} ` +
         `scale=${String(display.scaleFactor)}${display.isPrimary ? ' (primary)' : ''}`,
     )
+  }
+
+  const capturePath = process.env['VJDJ_CAPTURE']
+  if (capturePath !== undefined && capturePath !== '') {
+    const code = await runCapture(windows, capturePath)
+    windows.dispose()
+    app.exit(code)
+    return
   }
 
   if (process.env['VJDJ_SELFTEST'] === '1') {

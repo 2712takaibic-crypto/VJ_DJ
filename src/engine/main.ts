@@ -2,6 +2,7 @@ import type { ControlToEngine, EngineToControl } from '@shared/protocol/realtime
 import { connectRealtimePort } from '@shared/renderer/connect'
 import { createStageRenderer } from './stage/renderer'
 import { createStage } from './stage/scene'
+import { createPerformer, createVideoElementSource } from './video/performer'
 
 /**
  * Engine Host のエントリポイント。
@@ -51,6 +52,23 @@ const start = async (): Promise<void> => {
   const stage = createStage()
   stageRenderer.scene.add(stage.root)
   console.info('[engine] stage renderer ready (three WebGPU)')
+
+  // --- 被写体 (グリーンバック → クロマキー → 3D 空間の板) ---
+  try {
+    const source = await createVideoElementSource('vjdj-media://local/green_back.mp4')
+    console.info(
+      `[engine] green_back loaded ${source.width}x${source.height} ${source.duration().toFixed(2)}s`,
+    )
+    const performer = createPerformer(source)
+    stage.performerAnchor.add(performer.object)
+    await source.play()
+    console.info('[engine] performer playing')
+  } catch (error) {
+    // 被写体が出せなくてもステージは動かす。
+    // 素材の問題とレンダリングの問題を切り分けられるようにするため。
+    const message = error instanceof Error ? error.message : String(error)
+    console.error(`[engine] performer unavailable: ${message}`)
+  }
 
   let frames = 0
   let lastReport = performance.now()

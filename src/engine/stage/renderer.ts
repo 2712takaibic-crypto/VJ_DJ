@@ -67,7 +67,7 @@ export const createStageRenderer = async (
   const pipeline = new THREE.RenderPipeline(renderer)
   const scenePass = pass(scene, camera)
   const scenePassColor = scenePass.getTextureNode('output')
-  const bloomPass = bloom(scenePassColor, 0.9, 0.5, 0.12)
+  const bloomPass = bloom(scenePassColor, 0.75, 0.55, 0.6)
   pipeline.outputNode = scenePassColor.add(bloomPass)
 
   return {
