@@ -1,4 +1,5 @@
 import type { ExportConfig, ExportResult } from './export'
+import type { MediaAsset } from './media'
 import type { WindowRole } from './window'
 
 /**
@@ -38,4 +39,9 @@ export type VjdjApi = {
    * VJDJ_EXPORT で起動した場合に設定が返る。
    */
   exportRequest(): Promise<ExportConfig | null>
+
+  /** ファイル選択ダイアログを開き、選ばれたファイルを取り込む */
+  importMedia(): Promise<readonly MediaAsset[]>
+  /** 取り込み済みのメディア一覧 */
+  listMedia(): Promise<readonly MediaAsset[]>
 }

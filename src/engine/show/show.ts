@@ -37,6 +37,10 @@ export type Show = {
   getParams(): ShowParams
   /** 指定された値だけを差し替える */
   patchParams(patch: ShowParamsPatch): ShowParams
+  /** 被写体の映像を差し替える。取り込み済みメディアの frames URL を渡す */
+  setVideoSource(framesBaseUrl: string): Promise<void>
+  /** 音源 (解析結果) を差し替える */
+  setAudioSource(analysisUrl: string): Promise<void>
   dispose(): void
 }
 
@@ -94,13 +98,13 @@ const shotForBar = (bar: number, barsPerShot: number): Shot => {
 }
 
 export const createShow = async (renderer: StageRenderer, assets: ShowAssets): Promise<Show> => {
-  const analysis = await loadAnalysis(assets.analysisUrl)
-  const frames: FrameSequenceSource = await createFrameSequenceSource(assets.framesBaseUrl)
+  let analysis = await loadAnalysis(assets.analysisUrl)
+  let frames: FrameSequenceSource = await createFrameSequenceSource(assets.framesBaseUrl)
 
   const stage = createStage()
   renderer.scene.add(stage.root)
 
-  const performer = createPerformer(frames.texture, frames.width, frames.height)
+  let performer = createPerformer(frames.texture, frames.width, frames.height)
   stage.performerAnchor.add(performer.object)
 
   const camera = renderer.camera
@@ -114,10 +118,16 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
   applyStaticParams(params)
 
   return {
-    analysis,
+    get analysis() {
+      return analysis
+    },
     stage,
-    performer,
-    durationSeconds: analysis.data.durationSeconds,
+    get performer() {
+      return performer
+    },
+    get durationSeconds() {
+      return analysis.data.durationSeconds
+    },
 
     update: async (t, options = {}) => {
       // --- 映像フレーム ---
@@ -190,6 +200,23 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
         params.bloom.radius + high * 0.25 * response,
         params.bloom.threshold - rms * 0.15 * response,
       )
+    },
+
+    setVideoSource: async (framesBaseUrl) => {
+      const next = await createFrameSequenceSource(framesBaseUrl)
+      // 差し替えは新しいものを作り切ってから。
+      // 先に古い方を捨てると、読み込みに失敗したときに何も出なくなる。
+      stage.performerAnchor.remove(performer.object)
+      performer.dispose()
+      frames.dispose()
+      frames = next
+      performer = createPerformer(next.texture, next.width, next.height)
+      stage.performerAnchor.add(performer.object)
+      applyStaticParams(params)
+    },
+
+    setAudioSource: async (analysisUrl) => {
+      analysis = await loadAnalysis(analysisUrl)
     },
 
     getParams: () => params,

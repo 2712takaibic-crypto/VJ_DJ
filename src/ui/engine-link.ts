@@ -25,6 +25,8 @@ export type EngineLink = {
   setPlaying(playing: boolean): void
   seek(seconds: number): void
   configurePreview(width: number, fps: number): void
+  setVideoSource(framesBaseUrl: string): void
+  setAudioSource(analysisUrl: string): void
   /** 状態が届くたびに呼ばれる (約 10Hz) */
   onState(handler: (state: EngineState) => void): () => void
   /** プレビュー画像が届くたびに呼ばれる。使い終えたら close すること */
@@ -85,6 +87,12 @@ export const connectEngine = async (): Promise<EngineLink> => {
     },
     configurePreview: (width, fps) => {
       send({ t: 'previewConfig', width, fps })
+    },
+    setVideoSource: (framesBaseUrl) => {
+      send({ t: 'setVideo', framesBaseUrl })
+    },
+    setAudioSource: (analysisUrl) => {
+      send({ t: 'setAudio', analysisUrl })
     },
     onState: (handler) => {
       stateHandlers.add(handler)

@@ -76,6 +76,20 @@ export const startControlServer = async (
           : false
       return callRenderer(engineWindow, 'setPlaying', [playing])
     },
+    '/setVideoSource': (body) => {
+      const url =
+        typeof body === 'object' && body !== null && !Array.isArray(body)
+          ? String((body as { [k: string]: RawValue })['url'] ?? '')
+          : ''
+      return callRenderer(engineWindow, 'setVideoSource', [url])
+    },
+    '/setAudioSource': (body) => {
+      const url =
+        typeof body === 'object' && body !== null && !Array.isArray(body)
+          ? String((body as { [k: string]: RawValue })['url'] ?? '')
+          : ''
+      return callRenderer(engineWindow, 'setAudioSource', [url])
+    },
     '/capture': (body) => {
       const record =
         typeof body === 'object' && body !== null && !Array.isArray(body)

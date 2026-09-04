@@ -42,6 +42,8 @@ type EngineHandlers = {
   onSeek?: (message: Extract<ControlToEngine, { t: 'seek' }>) => void
   onPreviewAck?: (message: Extract<ControlToEngine, { t: 'previewAck' }>) => void
   onPreviewConfig?: (message: Extract<ControlToEngine, { t: 'previewConfig' }>) => void
+  onSetVideo?: (message: Extract<ControlToEngine, { t: 'setVideo' }>) => void
+  onSetAudio?: (message: Extract<ControlToEngine, { t: 'setAudio' }>) => void
 }
 
 const handlers: EngineHandlers = {}
@@ -71,6 +73,12 @@ const handle = (port: MessagePort, message: ControlToEngine): void => {
       return
     case 'previewConfig':
       handlers.onPreviewConfig?.(message)
+      return
+    case 'setVideo':
+      handlers.onSetVideo?.(message)
+      return
+    case 'setAudio':
+      handlers.onSetAudio?.(message)
       return
   }
 }
@@ -162,6 +170,22 @@ const start = async (): Promise<void> => {
   }
   handlers.onPreviewConfig = (message) => {
     preview.configure(message.width, message.fps)
+  }
+  handlers.onSetVideo = (message) => {
+    // 差し替えに失敗しても現在の映像を出し続ける
+    void show.setVideoSource(message.framesBaseUrl).catch((error: Error) => {
+      console.error(`[engine] setVideo failed: ${error.message}`)
+    })
+  }
+  handlers.onSetAudio = (message) => {
+    void show
+      .setAudioSource(message.analysisUrl)
+      .then(() => {
+        showTime = 0
+      })
+      .catch((error: Error) => {
+        console.error(`[engine] setAudio failed: ${error.message}`)
+      })
   }
 
   let lastStateSent = 0

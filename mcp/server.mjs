@@ -251,6 +251,47 @@ server.registerTool(
   },
 )
 
+// ---------------------------------------------------------------- 素材
+
+server.registerTool(
+  'set_video_source',
+  {
+    title: '被写体の映像を差し替える',
+    description:
+      '取り込み済みメディアの frames URL を指定して、ステージ上の被写体を差し替える。' +
+      'URL は vjdj-media://local/<id>/frames の形。',
+    inputSchema: { url: z.string().describe('vjdj-media://local/<id>/frames') },
+  },
+  async ({ url }) => {
+    const state = await call('/setVideoSource', { url })
+    return {
+      content: [{ type: 'text', text: `映像を差し替えた (duration ${String(state.duration)}s)` }],
+    }
+  },
+)
+
+server.registerTool(
+  'set_audio_source',
+  {
+    title: '音源を差し替える',
+    description:
+      '取り込み済み音源の analysis URL を指定する。BPM とビートグリッドが切り替わり、' +
+      '演出の同期先が変わる。URL は vjdj-media://local/<id>/analysis.json の形。',
+    inputSchema: { url: z.string().describe('vjdj-media://local/<id>/analysis.json') },
+  },
+  async ({ url }) => {
+    const state = await call('/setAudioSource', { url })
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `音源を差し替えた (${String(state.bpm)} BPM / ${String(state.duration)}s)`,
+        },
+      ],
+    }
+  },
+)
+
 // ---------------------------------------------------------------- 再生
 
 server.registerTool(

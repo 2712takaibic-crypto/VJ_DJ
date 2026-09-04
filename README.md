@@ -16,6 +16,7 @@
 | mp4 書き出し | ✅ 決定的なオフラインレンダリング + 音声多重化 |
 | MCP からの操作 | ✅ AI が画を見ながら調整できる |
 | 人間向け UI | ✅ プレビュー / トランスポート / パラメータ操作 |
+| 汎用メディア取り込み | ✅ 任意の音声/映像を取り込んで差し替え可能 |
 | DJ 機能 / DAW 機能 | ⏳ 未着手 |
 
 ## 使い方
@@ -29,8 +30,16 @@ node scripts/extract-frames.mjs 素材/green_back.mp4 .tmp/frames/green_back
 npm run build
 ```
 
-音源と映像素材は `素材/` に置く。解析結果と展開フレームは `.tmp/` に生成される。
-どちらも Git 管理外。
+これは既定素材の準備。任意の素材は UI の「素材ライブラリ」から取り込むか、
+CLI で一括取り込みできる。
+
+```bash
+VJDJ_IMPORT="path/to/video.mp4,path/to/song.mp3" npm start
+```
+
+取り込み時に映像は静止画列へ展開し、音声は BPM・ビートグリッド・
+帯域別エンベロープを解析する。結果はコンテンツハッシュでキャッシュするので、
+同じファイルを 2 度取り込んでも再計算しない。
 
 ### 起動
 
@@ -76,7 +85,8 @@ VJDJ を起動した状態で、プロンプトで指示できる。
 次の調整を決められる。画を見ずにパラメータを触っても意図した絵にはならない。
 
 提供ツール: `get_state` `capture` `set_chroma` `set_performer` `set_bloom`
-`set_lasers` `set_lightning` `set_wall` `set_camera` `set_particles` `seek` `set_playing`
+`set_lasers` `set_lightning` `set_wall` `set_camera` `set_particles`
+`set_video_source` `set_audio_source` `seek` `set_playing`
 
 ## 開発
 

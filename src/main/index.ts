@@ -7,6 +7,8 @@ import {
   registerMediaScheme,
 } from './media/protocol'
 import { registerExportService, setPendingExport, whenExportFinished } from './media/export-service'
+import { importMedia, listMedia } from './media/library'
+import { registerLibraryService } from './media/library-service'
 import { startControlServer } from './control/server'
 import { createWindowManager, type WindowManager } from './windows/manager'
 
@@ -97,6 +99,7 @@ void app.whenReady().then(async () => {
   handleMediaProtocol()
   for (const root of defaultMediaRoots()) allowMediaRoot(root)
   registerExportService()
+  registerLibraryService()
 
   // VJDJ_EXPORT=<出力パス> で書き出しモードに入る
   const exportPath = process.env['VJDJ_EXPORT']
@@ -111,6 +114,33 @@ void app.whenReady().then(async () => {
       audioPath: process.env['VJDJ_EXPORT_AUDIO'] ?? null,
       crf: Number(process.env['VJDJ_EXPORT_CRF'] ?? '18'),
     })
+  }
+
+  // VJDJ_IMPORT=<パス[,パス...]> で起動時に取り込んで終了する。
+  // ダイアログを使わずスクリプトから素材を用意できる。
+  const importList = process.env['VJDJ_IMPORT']
+  if (importList !== undefined && importList !== '') {
+    let failed = 0
+    for (const path of importList
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p !== '')) {
+      try {
+        const asset = await importMedia(path)
+        console.log(
+          `IMPORT OK ${asset.kind} ${asset.name} -> ${asset.url} ` +
+            `(${String(asset.width)}x${String(asset.height)} ${asset.durationSeconds.toFixed(2)}s)`,
+        )
+      } catch (error) {
+        failed++
+        console.error(
+          `IMPORT FAIL ${path}: ${error instanceof Error ? error.message : String(error)}`,
+        )
+      }
+    }
+    console.log(`LIBRARY ${String(listMedia().length)} assets`)
+    app.exit(failed === 0 ? 0 : 1)
+    return
   }
 
   const windows = createWindowManager()

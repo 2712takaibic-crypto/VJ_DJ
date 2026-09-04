@@ -61,6 +61,9 @@ const api: VjdjApi = {
   exportFrame: (jpeg) => ipcRenderer.invoke('export:frame', jpeg),
   exportFinish: () => ipcRenderer.invoke('export:finish'),
   exportRequest: () => ipcRenderer.invoke('export:request'),
+
+  importMedia: () => ipcRenderer.invoke('media:import'),
+  listMedia: () => ipcRenderer.invoke('media:list'),
   ready: () => {
     mainWorldReady = true
     if (bufferedPort !== null) {

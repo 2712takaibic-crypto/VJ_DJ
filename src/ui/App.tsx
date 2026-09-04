@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type JSX } from 'react'
 import type { ShowParamsPatch } from '@shared/protocol/show-params'
 import { connectEngine, type EngineLink, type EngineState } from './engine-link'
 import { Section, Slider, Toggle } from './controls'
+import { Library } from './library'
 
 /**
  * Control Window。
@@ -142,6 +143,15 @@ export const App = (): JSX.Element => {
 
       {/* ---- パラメータ ---- */}
       <aside style={{ width: 280, flex: '0 0 280px', overflowY: 'auto', paddingLeft: '0.8rem' }}>
+        <Library
+          onSelectVideo={(asset) => {
+            link?.setVideoSource(asset.url)
+          }}
+          onSelectAudio={(asset) => {
+            link?.setAudioSource(asset.url)
+          }}
+        />
+
         <Section title="クロマキー">
           <Slider
             name="inner"

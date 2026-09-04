@@ -31,6 +31,10 @@ export type ShowController = {
   setPlaying(playing: boolean): void
   /** 指定時刻を描画して JPEG の data URL を返す */
   capture(seconds: number | null, maxWidth: number): Promise<string>
+  /** 被写体の映像を差し替える */
+  setVideoSource(framesBaseUrl: string): Promise<ControlState>
+  /** 音源を差し替える */
+  setAudioSource(analysisUrl: string): Promise<ControlState>
 }
 
 declare global {
@@ -67,6 +71,17 @@ export const installController = (host: ControlHost): ShowController => {
 
     setParams: (patch) => {
       host.show.patchParams(patch)
+      return buildState()
+    },
+
+    setVideoSource: async (framesBaseUrl) => {
+      await host.show.setVideoSource(framesBaseUrl)
+      return buildState()
+    },
+
+    setAudioSource: async (analysisUrl) => {
+      await host.show.setAudioSource(analysisUrl)
+      host.setTime(0)
       return buildState()
     },
 

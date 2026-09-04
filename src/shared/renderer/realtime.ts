@@ -31,6 +31,10 @@ export type ControlToEngine =
   /** プレビューの受け取り完了通知。背圧制御に使う */
   | { readonly t: 'previewAck'; readonly seq: number }
   | { readonly t: 'previewConfig'; readonly width: number; readonly fps: number }
+  /** 被写体の映像を差し替える */
+  | { readonly t: 'setVideo'; readonly framesBaseUrl: string }
+  /** 音源 (解析結果) を差し替える */
+  | { readonly t: 'setAudio'; readonly analysisUrl: string }
 
 export type EngineToControl =
   | {
