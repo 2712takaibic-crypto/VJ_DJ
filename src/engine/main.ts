@@ -6,6 +6,7 @@ import { runExport } from './show/export'
 import { createShow, SHOT_COUNT } from './show/show'
 import { installController } from './control'
 import { createPreviewPublisher } from './preview'
+import { createDj } from './audio/dj'
 
 /**
  * Engine Host のエントリポイント。
@@ -44,6 +45,8 @@ type EngineHandlers = {
   onPreviewConfig?: (message: Extract<ControlToEngine, { t: 'previewConfig' }>) => void
   onSetVideo?: (message: Extract<ControlToEngine, { t: 'setVideo' }>) => void
   onSetAudio?: (message: Extract<ControlToEngine, { t: 'setAudio' }>) => void
+  /** DJ 関連はまとめて 1 つのハンドラで受ける。種類が多く、個別に生やすと冗長になる */
+  onDj?: (message: ControlToEngine) => void
 }
 
 const handlers: EngineHandlers = {}
@@ -79,6 +82,10 @@ const handle = (port: MessagePort, message: ControlToEngine): void => {
       return
     case 'setAudio':
       handlers.onSetAudio?.(message)
+      return
+    default:
+      // 残りは DJ 関連
+      handlers.onDj?.(message)
       return
   }
 }
@@ -191,6 +198,69 @@ const start = async (): Promise<void> => {
   let lastStateSent = 0
   let measuredFps = 0
 
+  // --- DJ セクション ---
+  // AudioContext は自動再生制限で suspended から始まることがある。
+  // 実際に鳴らす操作が来た時点で resume する。
+  const dj = createDj()
+  let audioStarted = false
+  const ensureAudio = async (): Promise<void> => {
+    if (audioStarted) return
+    audioStarted = true
+    try {
+      await dj.engine.whenReady(5000)
+      console.info('[engine] audio clock ready')
+    } catch (error) {
+      console.error(`[engine] audio start failed: ${error instanceof Error ? error.message : ''}`)
+    }
+  }
+
+  handlers.onDj = (message) => {
+    void ensureAudio()
+    const deckOf = (id: 'A' | 'B') => (id === 'A' ? dj.mixer.deckA : dj.mixer.deckB)
+    switch (message.t) {
+      case 'djLoadDeck':
+        void dj.loadDeck(message.deck, message.url, message.name, message.bpm).catch((e: Error) => {
+          console.error(`[engine] deck load failed: ${e.message}`)
+        })
+        return
+      case 'djDeck':
+        if (message.action === 'play') deckOf(message.deck).play()
+        else deckOf(message.deck).pause()
+        return
+      case 'djSeek':
+        deckOf(message.deck).seek(message.seconds)
+        return
+      case 'djRate':
+        deckOf(message.deck).setRate(message.rate)
+        return
+      case 'djGain':
+        deckOf(message.deck).setGain(message.gain)
+        return
+      case 'djEq':
+        deckOf(message.deck).setEq(message.band, message.db)
+        return
+      case 'djCrossfader':
+        dj.setCrossfader(message.value)
+        return
+      case 'djCurve':
+        dj.setCurve(message.curve)
+        return
+      case 'djMaster':
+        dj.setMasterGain(message.value)
+        return
+      case 'djLoadPad':
+        void dj.loadPad(message.index, message.url, message.name).catch((e: Error) => {
+          console.error(`[engine] pad load failed: ${e.message}`)
+        })
+        return
+      case 'djTriggerPad':
+        dj.sampler.trigger(message.index)
+        return
+      default:
+        return
+    }
+  }
+
   const tick = (now: number): void => {
     const delta = (now - lastNow) / 1000
     lastNow = now
@@ -222,6 +292,22 @@ const start = async (): Promise<void> => {
         fps: measuredFps,
       }
       port.postMessage(state)
+
+      const djState = dj.getState()
+      const djMessage: EngineToControl = {
+        t: 'djState',
+        state: {
+          ready: djState.ready,
+          deckA: djState.mixer.deckA,
+          deckB: djState.mixer.deckB,
+          crossfader: djState.mixer.crossfader,
+          curve: djState.mixer.curve,
+          masterGain: djState.mixer.masterGain,
+          level: djState.level,
+          pads: djState.pads.map((pad) => ({ index: pad.index, name: pad.name })),
+        },
+      }
+      port.postMessage(djMessage)
     }
 
     frames++
@@ -234,6 +320,36 @@ const start = async (): Promise<void> => {
     requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
+
+  // VJDJ_AUDIO_TEST=<音源URL> で音声経路を検証して結果をログに出す。
+  // 「鳴っているか」は画では分からないので、レベルを測って確かめる。
+  const audioTestUrl = new URLSearchParams(location.search).get('audioTest')
+  if (audioTestUrl !== null && audioTestUrl !== '') {
+    void (async () => {
+      try {
+        await ensureAudio()
+        await dj.loadDeck('A', audioTestUrl, 'test', 130)
+        dj.mixer.deckA.play()
+        dj.setCrossfader(0)
+        dj.setMasterGain(0.9)
+        // 立ち上がりを待ってからレベルを測る
+        await new Promise((resolve) => setTimeout(resolve, 1200))
+        let peak = 0
+        for (let i = 0; i < 30; i++) {
+          peak = Math.max(peak, dj.engine.getLevel())
+          await new Promise((resolve) => setTimeout(resolve, 50))
+        }
+        const state = dj.getState()
+        console.info(
+          `AUDIOTEST ready=${String(state.ready)} playing=${String(state.mixer.deckA.playing)} ` +
+            `dur=${state.mixer.deckA.durationSeconds.toFixed(2)} ` +
+            `pos=${state.mixer.deckA.positionSeconds.toFixed(2)} peak=${peak.toFixed(4)}`,
+        )
+      } catch (error) {
+        console.error(`AUDIOTEST FAIL ${error instanceof Error ? error.message : String(error)}`)
+      }
+    })()
+  }
 }
 
 void start().catch((error: Error) => {

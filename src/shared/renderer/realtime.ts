@@ -1,5 +1,29 @@
 import type { ShowParams, ShowParamsPatch } from '@shared/protocol/show-params'
 
+/** DJ セクションの状態。UI に表示するために送る */
+export type DjDeckPayload = {
+  readonly loaded: boolean
+  readonly name: string
+  readonly playing: boolean
+  readonly positionSeconds: number
+  readonly durationSeconds: number
+  readonly rate: number
+  readonly gain: number
+  readonly eq: { readonly low: number; readonly mid: number; readonly high: number }
+  readonly bpm: number | null
+}
+
+export type DjStatePayload = {
+  readonly ready: boolean
+  readonly deckA: DjDeckPayload
+  readonly deckB: DjDeckPayload
+  readonly crossfader: number
+  readonly curve: 'smooth' | 'sharp'
+  readonly masterGain: number
+  readonly level: number
+  readonly pads: readonly { readonly index: number; readonly name: string }[]
+}
+
 /**
  * RealtimeChannel: Control Window ⇄ Engine Host を直結する高頻度チャネル。
  *
@@ -35,6 +59,29 @@ export type ControlToEngine =
   | { readonly t: 'setVideo'; readonly framesBaseUrl: string }
   /** 音源 (解析結果) を差し替える */
   | { readonly t: 'setAudio'; readonly analysisUrl: string }
+  // --- DJ ---
+  | {
+      readonly t: 'djLoadDeck'
+      readonly deck: 'A' | 'B'
+      readonly url: string
+      readonly name: string
+      readonly bpm: number | null
+    }
+  | { readonly t: 'djDeck'; readonly deck: 'A' | 'B'; readonly action: 'play' | 'pause' }
+  | { readonly t: 'djSeek'; readonly deck: 'A' | 'B'; readonly seconds: number }
+  | { readonly t: 'djRate'; readonly deck: 'A' | 'B'; readonly rate: number }
+  | { readonly t: 'djGain'; readonly deck: 'A' | 'B'; readonly gain: number }
+  | {
+      readonly t: 'djEq'
+      readonly deck: 'A' | 'B'
+      readonly band: 'low' | 'mid' | 'high'
+      readonly db: number
+    }
+  | { readonly t: 'djCrossfader'; readonly value: number }
+  | { readonly t: 'djCurve'; readonly curve: 'smooth' | 'sharp' }
+  | { readonly t: 'djMaster'; readonly value: number }
+  | { readonly t: 'djLoadPad'; readonly index: number; readonly url: string; readonly name: string }
+  | { readonly t: 'djTriggerPad'; readonly index: number }
 
 export type EngineToControl =
   | {
@@ -55,3 +102,5 @@ export type EngineToControl =
     }
   /** プレビュー画像。ImageBitmap は transfer するのでコピーが発生しない */
   | { readonly t: 'preview'; readonly seq: number; readonly bitmap: ImageBitmap }
+  /** DJ セクションの状態 */
+  | { readonly t: 'djState'; readonly state: DjStatePayload }

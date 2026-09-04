@@ -3,6 +3,7 @@ import type { ShowParamsPatch } from '@shared/protocol/show-params'
 import { connectEngine, type EngineLink, type EngineState } from './engine-link'
 import { Section, Slider, Toggle } from './controls'
 import { Library } from './library'
+import { DjPanel } from './dj'
 
 /**
  * Control Window。
@@ -151,6 +152,8 @@ export const App = (): JSX.Element => {
             link?.setAudioSource(asset.url)
           }}
         />
+
+        {link !== null && <DjPanel link={link} />}
 
         <Section title="クロマキー">
           <Slider

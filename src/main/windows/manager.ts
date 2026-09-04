@@ -28,12 +28,22 @@ const ROLES: readonly WindowRole[] = ['control', 'engine']
 
 const PRELOAD = join(import.meta.dirname, '../preload/index.cjs')
 
-const rendererEntry = (role: WindowRole): { url: string } | { file: string } => {
+const rendererEntry = (
+  role: WindowRole,
+): { url: string } | { file: string; query: Record<string, string> } => {
   const dir = role === 'control' ? 'ui' : 'engine'
+  // 検証用のパラメータをレンダラへ渡す
+  const query: Record<string, string> = {}
+  const audioTest = process.env['VJDJ_AUDIO_TEST']
+  if (role === 'engine' && audioTest !== undefined && audioTest !== '')
+    query['audioTest'] = audioTest
+
   const devServerUrl = process.env['ELECTRON_RENDERER_URL']
-  return devServerUrl !== undefined
-    ? { url: `${devServerUrl}/${dir}/index.html` }
-    : { file: join(import.meta.dirname, `../renderer/${dir}/index.html`) }
+  if (devServerUrl !== undefined) {
+    const search = new URLSearchParams(query).toString()
+    return { url: `${devServerUrl}/${dir}/index.html${search === '' ? '' : `?${search}`}` }
+  }
+  return { file: join(import.meta.dirname, `../renderer/${dir}/index.html`), query }
 }
 
 const createWindow = (
@@ -80,7 +90,9 @@ const createWindow = (
   })
 
   const entry = rendererEntry(role)
-  void ('url' in entry ? window.loadURL(entry.url) : window.loadFile(entry.file))
+  void ('url' in entry
+    ? window.loadURL(entry.url)
+    : window.loadFile(entry.file, { query: entry.query }))
 
   return window
 }
