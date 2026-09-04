@@ -1,19 +1,27 @@
 import type { ControlToEngine, EngineToControl } from '@shared/protocol/realtime'
 import { connectRealtimePort } from '@shared/renderer/connect'
+import '@shared/renderer/globals'
 import { createStageRenderer } from './stage/renderer'
-import { createStage } from './stage/scene'
-import { createPerformer, createVideoElementSource } from './video/performer'
+import { runExport } from './show/export'
+import { createShow } from './show/show'
 
 /**
  * Engine Host のエントリポイント。
  *
  * 設計書 §1.1 の設計判断 A により、このレンダラが
- * 音声エンジン・映像エンジン・マスタークロックのすべてを持つ。
- * Control Window は状態を送り、プレビューを受け取るだけの純粋な UI になる。
+ * 映像・音・時刻のすべてを持つ。
+ *
+ * リアルタイム再生と書き出しはどちらも同じ Show を通る。
+ * 違いは時刻の与え方だけ (音声クロック / フレーム番号)。
  */
 
 const OUTPUT_WIDTH = 1920
 const OUTPUT_HEIGHT = 1080
+
+const ASSETS = {
+  analysisUrl: 'vjdj-media://local/hikari.analysis.json',
+  framesBaseUrl: 'vjdj-media://local/frames/green_back',
+} as const
 
 const canvas = document.getElementById('output')
 if (!(canvas instanceof HTMLCanvasElement)) {
@@ -36,51 +44,60 @@ const handle = (port: MessagePort, message: ControlToEngine): void => {
 
 const start = async (): Promise<void> => {
   const port = await connectRealtimePort()
-
-  // NOTE: 自プロセス同士のチャネルなので現時点では型注釈のみで受けている。
-  // 検証を挟むのは P0-16 (zod 導入) 以降。
   port.onmessage = (event: MessageEvent<ControlToEngine>) => {
     handle(port, event.data)
   }
   console.info('[engine] realtime channel connected')
 
-  const stageRenderer = await createStageRenderer({
+  const renderer = await createStageRenderer({
     canvas,
     width: OUTPUT_WIDTH,
     height: OUTPUT_HEIGHT,
   })
-  const stage = createStage()
-  stageRenderer.scene.add(stage.root)
   console.info('[engine] stage renderer ready (three WebGPU)')
 
-  // --- 被写体 (グリーンバック → クロマキー → 3D 空間の板) ---
-  try {
-    const source = await createVideoElementSource('vjdj-media://local/green_back.mp4')
-    console.info(
-      `[engine] green_back loaded ${source.width}x${source.height} ${source.duration().toFixed(2)}s`,
-    )
-    const performer = createPerformer(source)
-    stage.performerAnchor.add(performer.object)
-    await source.play()
-    console.info('[engine] performer playing')
-  } catch (error) {
-    // 被写体が出せなくてもステージは動かす。
-    // 素材の問題とレンダリングの問題を切り分けられるようにするため。
-    const message = error instanceof Error ? error.message : String(error)
-    console.error(`[engine] performer unavailable: ${message}`)
+  const show = await createShow(renderer, ASSETS)
+  console.info(
+    `[engine] show ready — ${show.durationSeconds.toFixed(2)}s @ ` +
+      `${show.analysis.data.tempo.bpm.toFixed(2)}bpm, ${String(show.analysis.data.beats.length)} beats`,
+  )
+
+  // --- 書き出しモード ---
+  const request = await window.vjdj.exportRequest()
+  if (request !== null) {
+    console.info('[engine] export mode')
+    const result = await runExport(show, renderer, canvas, request, {
+      onProgress: (frame, total, elapsed) => {
+        const ratio = frame / total
+        const eta = ratio > 0 ? elapsed / ratio - elapsed : 0
+        console.info(
+          `[engine] export ${String(frame)}/${String(total)} ` +
+            `(${(ratio * 100).toFixed(1)}%) elapsed=${elapsed.toFixed(0)}s eta=${eta.toFixed(0)}s`,
+        )
+      },
+    })
+    if (result.ok) {
+      console.info(`[engine] EXPORT OK ${result.outputPath} ${String(result.frames)} frames`)
+    } else {
+      console.error(`[engine] EXPORT FAIL ${result.error}`)
+    }
+    return
   }
 
+  // --- リアルタイムプレビュー ---
+  // 現状は経過時間で駆動している。音声クロックへの接続は
+  // Transport (P0-11) を入れる際に差し替える。
   let frames = 0
   let lastReport = performance.now()
-
+  const startedAt = performance.now()
   let renderErrorReported = false
+
   const tick = (now: number): void => {
-    stage.update(now / 1000)
+    const t = ((now - startedAt) / 1000) % show.durationSeconds
+    void show.update(t)
     try {
-      stageRenderer.render()
+      renderer.render()
     } catch (error) {
-      // 毎フレーム同じ例外を吐くとログが埋まるので 1 回だけ報告する。
-      // 黙って握りつぶすと「真っ黒だが原因が分からない」状態になる。
       if (!renderErrorReported) {
         renderErrorReported = true
         const message = error instanceof Error ? (error.stack ?? error.message) : String(error)
@@ -90,8 +107,7 @@ const start = async (): Promise<void> => {
 
     frames++
     if (now - lastReport >= 5000) {
-      const fps = (frames * 1000) / (now - lastReport)
-      console.info(`[engine] ${fps.toFixed(1)} fps`)
+      console.info(`[engine] ${((frames * 1000) / (now - lastReport)).toFixed(1)} fps`)
       frames = 0
       lastReport = now
     }

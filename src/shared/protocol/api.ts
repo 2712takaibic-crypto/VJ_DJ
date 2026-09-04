@@ -1,3 +1,4 @@
+import type { ExportConfig, ExportResult } from './export'
 import type { WindowRole } from './window'
 
 /**
@@ -25,4 +26,16 @@ export type VjdjApi = {
    * 直接呼ばず `connectRealtimePort()` を使うこと。
    */
   ready(): void
+
+  /** 書き出しを開始する。ffmpeg を起動して受け入れ状態にする */
+  exportBegin(config: ExportConfig): Promise<void>
+  /** JPEG に圧縮済みの 1 フレームを渡す */
+  exportFrame(jpeg: Uint8Array): Promise<void>
+  /** 書き出しを終了して結果を得る */
+  exportFinish(): Promise<ExportResult>
+  /**
+   * main から書き出し指示が出ているかを問い合わせる。
+   * VJDJ_EXPORT で起動した場合に設定が返る。
+   */
+  exportRequest(): Promise<ExportConfig | null>
 }

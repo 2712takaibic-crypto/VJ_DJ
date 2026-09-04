@@ -6,6 +6,7 @@ import {
   handleMediaProtocol,
   registerMediaScheme,
 } from './media/protocol'
+import { registerExportService, setPendingExport, whenExportFinished } from './media/export-service'
 import { createWindowManager, type WindowManager } from './windows/manager'
 
 // app.whenReady() より前に呼ぶ必要がある
@@ -92,6 +93,21 @@ void app.whenReady().then(async () => {
 
   handleMediaProtocol()
   for (const root of defaultMediaRoots()) allowMediaRoot(root)
+  registerExportService()
+
+  // VJDJ_EXPORT=<出力パス> で書き出しモードに入る
+  const exportPath = process.env['VJDJ_EXPORT']
+  if (exportPath !== undefined && exportPath !== '') {
+    setPendingExport({
+      outputPath: exportPath,
+      width: Number(process.env['VJDJ_EXPORT_WIDTH'] ?? '1920'),
+      height: Number(process.env['VJDJ_EXPORT_HEIGHT'] ?? '1080'),
+      fps: Number(process.env['VJDJ_EXPORT_FPS'] ?? '30'),
+      durationSeconds: Number(process.env['VJDJ_EXPORT_DURATION'] ?? '90.47'),
+      audioPath: process.env['VJDJ_EXPORT_AUDIO'] ?? null,
+      crf: Number(process.env['VJDJ_EXPORT_CRF'] ?? '18'),
+    })
+  }
 
   const windows = createWindowManager()
 
@@ -100,6 +116,13 @@ void app.whenReady().then(async () => {
       `[main] display ${String(display.id)} ${String(display.bounds.width)}x${String(display.bounds.height)} ` +
         `scale=${String(display.scaleFactor)}${display.isPrimary ? ' (primary)' : ''}`,
     )
+  }
+
+  if (process.env['VJDJ_EXPORT'] !== undefined && process.env['VJDJ_EXPORT'] !== '') {
+    const result = await whenExportFinished()
+    windows.dispose()
+    app.exit(result.ok ? 0 : 1)
+    return
   }
 
   const capturePath = process.env['VJDJ_CAPTURE']

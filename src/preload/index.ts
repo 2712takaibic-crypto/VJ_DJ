@@ -55,6 +55,12 @@ const api: VjdjApi = {
     chrome: process.versions.chrome,
     node: process.versions.node,
   },
+
+  exportBegin: (config) => ipcRenderer.invoke('export:begin', config),
+  // フレームは JPEG に圧縮済み。生 RGBA を送ると 90 秒で 22GB になる。
+  exportFrame: (jpeg) => ipcRenderer.invoke('export:frame', jpeg),
+  exportFinish: () => ipcRenderer.invoke('export:finish'),
+  exportRequest: () => ipcRenderer.invoke('export:request'),
   ready: () => {
     mainWorldReady = true
     if (bufferedPort !== null) {
