@@ -4,6 +4,12 @@ import { createStage, type Stage } from '@engine/stage/scene'
 import { createPerformer, type Performer } from '@engine/video/performer'
 import { createFrameSequenceSource, type FrameSequenceSource } from '@engine/video/frame-sequence'
 import { loadAnalysis, type Analysis } from './analysis'
+import {
+  applyParamsPatch,
+  DEFAULT_SHOW_PARAMS,
+  type ShowParams,
+  type ShowParamsPatch,
+} from './params'
 
 /**
  * MV 本体。
@@ -27,6 +33,10 @@ export type Show = {
    * 書き出しでは必ず await すること (映像フレームの読み込みを待つ必要がある)。
    */
   update(timeSeconds: number, options?: { readonly awaitFrames?: boolean }): Promise<void>
+  /** 現在の調整パラメータ */
+  getParams(): ShowParams
+  /** 指定された値だけを差し替える */
+  patchParams(patch: ShowParamsPatch): ShowParams
   dispose(): void
 }
 
@@ -75,9 +85,11 @@ const SHOTS: readonly Shot[] = [
   },
 ]
 
+export const SHOT_COUNT = SHOTS.length
+
 /** 小節番号からショットを決める。純関数なので再現する */
-const shotForBar = (bar: number): Shot => {
-  const index = Math.floor(Math.max(0, bar) / 4) % SHOTS.length
+const shotForBar = (bar: number, barsPerShot: number): Shot => {
+  const index = Math.floor(Math.max(0, bar) / Math.max(1, barsPerShot)) % SHOTS.length
   return SHOTS[index] ?? SHOTS[0]!
 }
 
@@ -92,6 +104,14 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
   stage.performerAnchor.add(performer.object)
 
   const camera = renderer.camera
+  let params: ShowParams = DEFAULT_SHOW_PARAMS
+
+  const applyStaticParams = (next: ShowParams): void => {
+    performer.keyMaterial.setParams(next.chroma)
+    performer.keyMaterial.setMatteView(next.chroma.matteView)
+    performer.setHeight(next.performer.heightMeters)
+  }
+  applyStaticParams(params)
 
   return {
     analysis,
@@ -117,15 +137,26 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
       const onset = analysis.envelopeAt('onset', t)
 
       // --- ステージ ---
-      stage.update(t, { pulse, low, mid, high, rms, onset })
+      stage.update(
+        t,
+        { pulse, low, mid, high, rms, onset },
+        { lasers: params.lasers, wall: params.wall, particles: params.particles },
+      )
 
       // --- 被写体 ---
       // 低音に合わせてわずかに上下させると、板が生きて見える
-      performer.object.position.y = low * 0.12
+      performer.object.position.set(
+        params.performer.x,
+        low * params.performer.bounce,
+        params.performer.z,
+      )
       performer.object.scale.setScalar(1 + pulse * 0.015)
 
       // --- カメラ ---
-      const shot = shotForBar(bar)
+      const shot =
+        params.camera.mode === 'manual'
+          ? (SHOTS[params.camera.shotIndex % SHOTS.length] ?? SHOTS[0]!)
+          : shotForBar(bar, params.camera.barsPerShot)
       const drift = shot.drift(t)
       camera.fov = shot.fov
       camera.position.set(
@@ -138,7 +169,20 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
 
       // --- ポストプロセス ---
       // サビで画が持ち上がるよう、全体の音量にブルームを追従させる
-      renderer.setBloom(0.45 + rms * 0.85 + onset * 0.35, 0.5 + high * 0.25, 0.55 - rms * 0.15)
+      const response = params.bloom.audioResponse
+      renderer.setBloom(
+        params.bloom.strength + (rms * 0.85 + onset * 0.35) * response,
+        params.bloom.radius + high * 0.25 * response,
+        params.bloom.threshold - rms * 0.15 * response,
+      )
+    },
+
+    getParams: () => params,
+
+    patchParams: (patch) => {
+      params = applyParamsPatch(params, patch)
+      applyStaticParams(params)
+      return params
     },
 
     dispose: () => {

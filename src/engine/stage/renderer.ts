@@ -26,6 +26,8 @@ export type StageRenderer = {
   render(): void
   /** ブルームの強さ。曲の盛り上がりに追従させる */
   setBloom(strength: number, radius: number, threshold: number): void
+  /** 出力解像度 */
+  readonly size: { width: number; height: number }
   dispose(): void
 }
 
@@ -70,12 +72,17 @@ export const createStageRenderer = async (
   const bloomPass = bloom(scenePassColor, 0.75, 0.55, 0.6)
   pipeline.outputNode = scenePassColor.add(bloomPass)
 
+  const size = { width: options.width, height: options.height }
+
   return {
     renderer,
     scene,
     camera,
+    size,
 
     setSize: (width, height) => {
+      size.width = width
+      size.height = height
       renderer.setSize(width, height, false)
       camera.aspect = width / height
       camera.updateProjectionMatrix()

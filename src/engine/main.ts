@@ -3,7 +3,8 @@ import { connectRealtimePort } from '@shared/renderer/connect'
 import '@shared/renderer/globals'
 import { createStageRenderer } from './stage/renderer'
 import { runExport } from './show/export'
-import { createShow } from './show/show'
+import { createShow, SHOT_COUNT } from './show/show'
+import { installController } from './control'
 
 /**
  * Engine Host のエントリポイント。
@@ -89,12 +90,35 @@ const start = async (): Promise<void> => {
   // Transport (P0-11) を入れる際に差し替える。
   let frames = 0
   let lastReport = performance.now()
-  const startedAt = performance.now()
   let renderErrorReported = false
 
+  // 再生位置は「基準時刻からの経過」で持つ。
+  // 一時停止やシークは基準をずらすことで表現する。
+  let showTime = 0
+  let playing = true
+  let lastNow = performance.now()
+
+  installController({
+    show,
+    renderer,
+    canvas,
+    getTime: () => showTime,
+    setTime: (seconds) => {
+      showTime = seconds
+    },
+    isPlaying: () => playing,
+    setPlaying: (next) => {
+      playing = next
+    },
+    shotCount: SHOT_COUNT,
+  })
+  console.info('[engine] controller installed (window.__vjdjControl)')
+
   const tick = (now: number): void => {
-    const t = ((now - startedAt) / 1000) % show.durationSeconds
-    void show.update(t)
+    const delta = (now - lastNow) / 1000
+    lastNow = now
+    if (playing) showTime = (showTime + delta) % show.durationSeconds
+    void show.update(showTime)
     try {
       renderer.render()
     } catch (error) {

@@ -26,10 +26,16 @@ export type StageAudio = {
   readonly onset: number
 }
 
+export type StageControls = {
+  readonly lasers: { readonly intensity: number; readonly sweep: number; readonly enabled: boolean }
+  readonly wall: { readonly hue: number; readonly hueRange: number; readonly brightness: number }
+  readonly particles: { readonly enabled: boolean; readonly intensity: number }
+}
+
 export type Stage = {
   readonly root: THREE.Group
   readonly performerAnchor: THREE.Group
-  update(t: number, audio: StageAudio): void
+  update(t: number, audio: StageAudio, controls: StageControls): void
   dispose(): void
 }
 
@@ -166,7 +172,7 @@ export const createStage = (): Stage => {
     root,
     performerAnchor,
 
-    update: (t, audio) => {
+    update: (t, audio, controls) => {
       // ライトバー: 1 本ずつ位相をずらして波が走るように
       for (const [index, bar] of lightBars.entries()) {
         const material = bar.material as THREE.MeshBasicNodeMaterial
@@ -180,7 +186,7 @@ export const createStage = (): Stage => {
       //
       // 色相を時間で一周させると黄緑など不利な色に来て、
       // 被写体が沈む。シアン〜紫〜マゼンタの範囲で往復させる。
-      const wallHue = 0.62 + Math.sin(t * 0.07) * 0.16
+      const wallHue = controls.wall.hue + Math.sin(t * 0.07) * controls.wall.hueRange
       for (const [index, bar] of wallBars.entries()) {
         const material = bar.material as THREE.MeshBasicNodeMaterial
         const band = Math.abs(Math.sin(index * 0.8 + t * 2.1))
@@ -190,7 +196,7 @@ export const createStage = (): Stage => {
         material.color.setHSL(
           (wallHue + index * 0.006) % 1,
           0.85,
-          (0.05 + level * 0.26) * (0.35 + centreBias * 0.65),
+          (0.05 + level * 0.26) * (0.35 + centreBias * 0.65) * controls.wall.brightness,
         )
         bar.scale.y = 0.3 + level * 0.85
       }
@@ -199,8 +205,18 @@ export const createStage = (): Stage => {
       glowStrength.value = 0.45 + audio.low * 0.55 + audio.pulse * 0.35
       footGlow.scale.setScalar(0.9 + audio.low * 0.3)
 
-      lasers.update(t, 0.35 + audio.high * 0.5 + audio.pulse * 0.5, 0.9)
-      particles.update(t, audio.rms)
+      lasers.object.visible = controls.lasers.enabled
+      if (controls.lasers.enabled) {
+        lasers.update(
+          t,
+          (0.35 + audio.high * 0.5 + audio.pulse * 0.5) * controls.lasers.intensity,
+          controls.lasers.sweep,
+        )
+      }
+      particles.object.visible = controls.particles.enabled
+      if (controls.particles.enabled) {
+        particles.update(t, audio.rms * controls.particles.intensity)
+      }
 
       // 照明を揺らす
       key.position.x = Math.sin(t * 0.33) * 2.6

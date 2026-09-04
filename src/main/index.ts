@@ -7,6 +7,7 @@ import {
   registerMediaScheme,
 } from './media/protocol'
 import { registerExportService, setPendingExport, whenExportFinished } from './media/export-service'
+import { startControlServer } from './control/server'
 import { createWindowManager, type WindowManager } from './windows/manager'
 
 // app.whenReady() より前に呼ぶ必要がある
@@ -139,6 +140,22 @@ void app.whenReady().then(async () => {
     windows.dispose()
     app.exit(code)
     return
+  }
+
+  // MCP / 外部からの操作を受け付ける (127.0.0.1 限定)。
+  // VJDJ_CONTROL_PORT=0 で自動割り当て、未指定なら 7321。
+  const controlPort = Number(process.env['VJDJ_CONTROL_PORT'] ?? '7321')
+  if (controlPort >= 0) {
+    try {
+      const control = await startControlServer(windows.engine, controlPort)
+      app.on('before-quit', () => {
+        void control.close()
+      })
+    } catch (error) {
+      console.error(
+        `[control] failed to start: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   }
 
   app.on('activate', () => {
