@@ -47,30 +47,30 @@ type Shot = {
 const SHOTS: readonly Shot[] = [
   {
     // 正面ミディアム
-    position: new THREE.Vector3(0, 2.3, 8.2),
-    target: new THREE.Vector3(0, 1.9, 0),
-    fov: 45,
+    position: new THREE.Vector3(0, 2.5, 6.4),
+    target: new THREE.Vector3(0, 2.3, 0),
+    fov: 44,
     drift: (t) => new THREE.Vector3(Math.sin(t * 0.18) * 0.7, Math.sin(t * 0.11) * 0.2, 0),
   },
   {
     // 下手からの寄り
-    position: new THREE.Vector3(-5.2, 2.6, 7.4),
-    target: new THREE.Vector3(0.1, 2.1, -1),
+    position: new THREE.Vector3(-3.9, 2.7, 5.6),
+    target: new THREE.Vector3(0.1, 2.4, -1),
     fov: 42,
     drift: (t) => new THREE.Vector3(Math.sin(t * 0.22) * 0.5, 0.15 + Math.sin(t * 0.3) * 0.15, 0),
   },
   {
     // 上手からのロー
-    position: new THREE.Vector3(5.4, 1.4, 6.8),
-    target: new THREE.Vector3(-0.1, 2.3, -1),
+    position: new THREE.Vector3(4.2, 1.6, 5.2),
+    target: new THREE.Vector3(-0.1, 2.5, -1),
     fov: 44,
     drift: (t) => new THREE.Vector3(-Math.sin(t * 0.19) * 0.6, Math.sin(t * 0.26) * 0.2, 0),
   },
   {
     // 引きのワイド。ステージ全体を見せる
-    position: new THREE.Vector3(0, 4.2, 12.5),
-    target: new THREE.Vector3(0, 2.2, -1),
-    fov: 55,
+    position: new THREE.Vector3(0, 3.4, 9.2),
+    target: new THREE.Vector3(0, 2.6, -1.5),
+    fov: 48,
     drift: (t) => new THREE.Vector3(Math.sin(t * 0.13) * 1.6, Math.cos(t * 0.09) * 0.4, 0),
   },
 ]

@@ -26,7 +26,7 @@ export const createPerformer = (
   sourceWidth: number,
   sourceHeight: number,
   keyParams: Partial<ChromaKeyParams> = {},
-  heightMeters = 3.4,
+  heightMeters = 4.6,
 ): Performer => {
   const keyMaterial = createChromaKeyMaterial(texture, keyParams)
 

@@ -85,8 +85,8 @@ export const createStage = (): Stage => {
 
   // ---------- 背面の LED ウォール ----------
   const wallBars: THREE.Mesh[] = []
-  const wallGeometry = track(new THREE.BoxGeometry(0.55, 7.4, 0.12))
-  for (let i = 0; i < 18; i++) {
+  const wallGeometry = track(new THREE.BoxGeometry(0.62, 8.6, 0.12))
+  for (let i = 0; i < 24; i++) {
     const hue = i / 18
     const material = track(
       new THREE.MeshBasicNodeMaterial({
@@ -95,7 +95,7 @@ export const createStage = (): Stage => {
       }),
     )
     const bar = new THREE.Mesh(wallGeometry, material)
-    bar.position.set((i - 8.5) * 0.72, 3.9, -8.5)
+    bar.position.set((i - 11.5) * 0.78, 4.4, -7.6)
     root.add(bar)
     wallBars.push(bar)
   }
@@ -176,13 +176,23 @@ export const createStage = (): Stage => {
         bar.rotation.z = Math.sin(t * 0.7 + index * 0.5) * 0.2
       }
 
-      // LED ウォール: 中低域で下から立ち上がるバー表現
+      // LED ウォール: スペクトラムアナライザ風に、バーごとに高さと明るさを変える。
+      //
+      // 色相を時間で一周させると黄緑など不利な色に来て、
+      // 被写体が沈む。シアン〜紫〜マゼンタの範囲で往復させる。
+      const wallHue = 0.62 + Math.sin(t * 0.07) * 0.16
       for (const [index, bar] of wallBars.entries()) {
         const material = bar.material as THREE.MeshBasicNodeMaterial
-        const band = Math.abs(Math.sin(index * 0.9 + t * 2.2))
-        const level = audio.mid * 0.6 + audio.low * 0.5 * band + audio.pulse * 0.35
-        material.color.setHSL((0.58 + index * 0.012 + t * 0.02) % 1, 0.85, 0.12 + level * 0.5)
-        bar.scale.y = 0.35 + level * 0.9
+        const band = Math.abs(Math.sin(index * 0.8 + t * 2.1))
+        const level = audio.mid * 0.5 + audio.low * 0.45 * band + audio.pulse * 0.3
+        // 中央付近を暗くして、被写体の背後が抜けるようにする
+        const centreBias = Math.min(1, Math.abs(index - (wallBars.length - 1) / 2) / 5)
+        material.color.setHSL(
+          (wallHue + index * 0.006) % 1,
+          0.85,
+          (0.05 + level * 0.26) * (0.35 + centreBias * 0.65),
+        )
+        bar.scale.y = 0.3 + level * 0.85
       }
 
       // 足元の発光: 低音で広がる

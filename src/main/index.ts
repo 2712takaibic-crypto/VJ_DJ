@@ -104,6 +104,7 @@ void app.whenReady().then(async () => {
       height: Number(process.env['VJDJ_EXPORT_HEIGHT'] ?? '1080'),
       fps: Number(process.env['VJDJ_EXPORT_FPS'] ?? '30'),
       durationSeconds: Number(process.env['VJDJ_EXPORT_DURATION'] ?? '90.47'),
+      startSeconds: Number(process.env['VJDJ_EXPORT_START'] ?? '0'),
       audioPath: process.env['VJDJ_EXPORT_AUDIO'] ?? null,
       crf: Number(process.env['VJDJ_EXPORT_CRF'] ?? '18'),
     })

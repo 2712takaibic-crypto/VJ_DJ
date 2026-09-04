@@ -30,3 +30,6 @@ resources/ffmpeg/*
 *.log
 .DS_Store
 Thumbs.db
+
+# 書き出した映像。サイズが大きいのでコミットしない
+output/

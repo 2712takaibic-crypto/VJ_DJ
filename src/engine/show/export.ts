@@ -38,7 +38,7 @@ export const runExport = async (
 
   try {
     for (let frame = 0; frame < totalFrames; frame++) {
-      const t = frame / config.fps
+      const t = config.startSeconds + frame / config.fps
 
       const trace = frame < 2
       if (trace) console.info(`[export] f${String(frame)} update…`)

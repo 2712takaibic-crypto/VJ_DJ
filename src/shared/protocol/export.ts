@@ -16,6 +16,8 @@ export type ExportConfig = {
   readonly height: number
   readonly fps: number
   readonly durationSeconds: number
+  /** 開始時刻。画作りの確認で途中だけ書き出すのに使う */
+  readonly startSeconds: number
   /** 多重化する音声ファイル。省略すると無音 */
   readonly audioPath: string | null
   /** H.264 の品質。小さいほど高品質 (18〜28 が実用域) */
