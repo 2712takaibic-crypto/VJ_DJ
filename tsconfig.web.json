@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "WebWorker"],
+    "types": ["@webgpu/types", "vite/client"],
+    "jsx": "react-jsx"
+  },
+  "include": [
+    "src/engine/**/*.ts",
+    "src/engine/**/*.tsx",
+    "src/ui/**/*.ts",
+    "src/ui/**/*.tsx",
+    "src/shared/**/*.ts",
+    "src/workers/**/*.ts",
+    "test/**/*.ts"
+  ]
+}

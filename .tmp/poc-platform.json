@@ -1,0 +1,143 @@
+{
+  "ranAt": "2026-08-19T15:26:46.748Z",
+  "secondsPerPhase": 20,
+  "forceUnsafeWebgpu": false,
+  "versions": {
+    "electron": "43.4.1",
+    "chrome": "150.0.7871.224",
+    "node": "24.18.1"
+  },
+  "displays": [
+    {
+      "id": 2501480666,
+      "size": {
+        "width": 1920,
+        "height": 1080
+      },
+      "scaleFactor": 1,
+      "internal": false
+    },
+    {
+      "id": 1980537014,
+      "size": {
+        "width": 1280,
+        "height": 720
+      },
+      "scaleFactor": 1.5,
+      "internal": false
+    }
+  ],
+  "gpuFeatureStatus": {
+    "2d_canvas": "enabled",
+    "direct_rendering_display_compositor": "disabled_off_ok",
+    "gpu_compositing": "enabled",
+    "multiple_raster_threads": "enabled_on",
+    "opengl": "enabled_on",
+    "rasterization": "enabled",
+    "raw_draw": "disabled_off_ok",
+    "skia_graphite": "disabled_off",
+    "trees_in_viz": "disabled_off",
+    "video_decode": "enabled",
+    "video_encode": "enabled",
+    "webgl": "enabled",
+    "webgpu": "enabled",
+    "webnn": "disabled_off"
+  },
+  "phase": "done",
+  "webgpu": {
+    "available": true,
+    "adapterAttempts": 10,
+    "adapterSuccesses": 10,
+    "adapterInfo": {
+      "vendor": "nvidia",
+      "architecture": "ampere",
+      "device": "",
+      "description": ""
+    },
+    "features": [
+      "depth32float-stencil8",
+      "rg11b10ufloat-renderable",
+      "bgra8unorm-storage",
+      "texture-formats-tier1",
+      "texture-compression-bc",
+      "dual-source-blending",
+      "core-features-and-limits",
+      "float32-filterable",
+      "indirect-first-instance",
+      "float32-blendable",
+      "depth-clip-control",
+      "texture-compression-bc-sliced-3d",
+      "timestamp-query",
+      "clip-distances",
+      "shader-f16",
+      "texture-formats-tier2",
+      "primitive-index",
+      "texture-component-swizzle",
+      "subgroups"
+    ],
+    "limits": {
+      "maxTextureDimension2D": 16384,
+      "maxBufferSize": 2147483648,
+      "maxStorageBufferBindingSize": 2147483644,
+      "maxUniformBufferBindingSize": 65536,
+      "maxColorAttachmentBytesPerSample": 128,
+      "maxBindGroups": 4,
+      "maxComputeWorkgroupStorageSize": 32768
+    },
+    "deviceCreated": true,
+    "renderSucceeded": true,
+    "error": null,
+    "preferredCanvasFormat": "bgra8unorm"
+  },
+  "raf": {
+    "focused": {
+      "label": "focused",
+      "seconds": 20.011,
+      "frames": 1201,
+      "fps": 60.01699065513967,
+      "intervalMs": {
+        "p50": 16.69999999999891,
+        "p95": 16.799999999999272,
+        "p99": 16.80000000000109,
+        "max": 16.900000000001455
+      },
+      "droppedOver20ms": 0,
+      "hiddenFrames": 0,
+      "visibilityAtEnd": "visible"
+    },
+    "unfocused": {
+      "label": "unfocused",
+      "seconds": 20.009500000047687,
+      "frames": 1202,
+      "fps": 60.071466053481366,
+      "intervalMs": {
+        "p50": 16.69999999999709,
+        "p95": 16.799999999995634,
+        "p99": 16.80000000000291,
+        "max": 16.80000000000291
+      },
+      "droppedOver20ms": 0,
+      "hiddenFrames": 0,
+      "visibilityAtEnd": "visible"
+    },
+    "minimized": {
+      "label": "minimized",
+      "seconds": 20.001700000023842,
+      "frames": 1202,
+      "fps": 60.09489193411396,
+      "intervalMs": {
+        "p50": 16.69999999999709,
+        "p95": 16.799999999995634,
+        "p99": 16.80000000000291,
+        "max": 16.80000000000291
+      },
+      "droppedOver20ms": 0,
+      "hiddenFrames": 0,
+      "visibilityAtEnd": "visible"
+    }
+  },
+  "verdict": {
+    "PC001": "PASS",
+    "PC008": "PASS"
+  }
+}

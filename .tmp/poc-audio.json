@@ -1,0 +1,101 @@
+{
+  "ranAt": "2026-08-19T17:25:50.795Z",
+  "seconds": 60,
+  "versions": {
+    "electron": "43.4.1",
+    "chrome": "150.0.7871.224"
+  },
+  "phase": "done",
+  "deviceProbe": {
+    "labelsUnlocked": true,
+    "devices": [
+      {
+        "deviceId": "default",
+        "label": "Default - スピーカー (Realtek(R) Audio)",
+        "maxChannelCount": 2,
+        "sampleRate": 48000,
+        "baseLatencyMs": 10,
+        "outputLatencyMs": 0,
+        "supportsIndependentCue": false,
+        "error": null
+      },
+      {
+        "deviceId": "communications",
+        "label": "Communications - TOSHIBA-TV (NVIDIA High Definition Audio)",
+        "maxChannelCount": 2,
+        "sampleRate": 48000,
+        "baseLatencyMs": 10,
+        "outputLatencyMs": 0,
+        "supportsIndependentCue": false,
+        "error": null
+      },
+      {
+        "deviceId": "29942137b18eb6038960de89db5a0dbca110aa46e4ceac0c20eea89014abd9e9",
+        "label": "TOSHIBA-TV (NVIDIA High Definition Audio)",
+        "maxChannelCount": 2,
+        "sampleRate": 48000,
+        "baseLatencyMs": 10,
+        "outputLatencyMs": 0,
+        "supportsIndependentCue": false,
+        "error": null
+      },
+      {
+        "deviceId": "72d763d7b9911efe1ca09662b821db38e574e7de36c9271dbc0dfef83d0d1fa6",
+        "label": "LCD-MF276XD (NVIDIA High Definition Audio)",
+        "maxChannelCount": 2,
+        "sampleRate": 48000,
+        "baseLatencyMs": 10,
+        "outputLatencyMs": 0,
+        "supportsIndependentCue": false,
+        "error": null
+      },
+      {
+        "deviceId": "b75156394a0b8441adcb7889e80a8a64edd3add32a77db682a3069a5e69d60c5",
+        "label": "スピーカー (Realtek(R) Audio)",
+        "maxChannelCount": 2,
+        "sampleRate": 48000,
+        "baseLatencyMs": 10,
+        "outputLatencyMs": 0,
+        "supportsIndependentCue": false,
+        "error": null
+      }
+    ]
+  },
+  "routing": {
+    "attempted": true,
+    "applied": true,
+    "channelCount": 2,
+    "error": null
+  },
+  "worklet": {
+    "ok": true,
+    "quantumSize": 128,
+    "error": null
+  },
+  "clock": {
+    "seconds": 60,
+    "sampleCount": 3597,
+    "startup": {
+      "firstReading": {
+        "contextTime": 0,
+        "performanceTime": 0
+      },
+      "msUntilRunning": 64.70000004768372,
+      "discarded": 64
+    },
+    "measuredSpanMs": 59949.90000009537,
+    "finalSkewMs": 0.10299990462954156,
+    "driftPpm": 1.7180996903977772,
+    "skewMs": {
+      "p50": 0.0029999999999006377,
+      "p95": 0.3019999523203296,
+      "max": 10.201999928474834,
+      "min": -3.8720000953617273
+    }
+  },
+  "verdict": {
+    "worklet": "PASS",
+    "clock": "PASS",
+    "cue": "NOT-AVAILABLE"
+  }
+}

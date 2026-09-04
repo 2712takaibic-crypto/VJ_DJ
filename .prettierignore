@@ -1,0 +1,9 @@
+out
+dist
+node_modules
+coverage
+.testdata
+.tmp
+.claude
+resources
+package-lock.json

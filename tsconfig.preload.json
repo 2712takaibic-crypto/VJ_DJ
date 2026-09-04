@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    // preload はレンダラプロセスで動くため DOM を持つが、
+    // Node の一部 API (process.argv 等) も sandbox 内で使える。
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["src/preload/**/*.ts", "src/shared/protocol/**/*.ts", "src/shared/units/**/*.ts"]
+}

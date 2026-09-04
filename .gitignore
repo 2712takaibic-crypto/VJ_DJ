@@ -1,0 +1,32 @@
+node_modules/
+out/
+dist/
+coverage/
+
+# FFmpeg で生成するテスト用メディア。生成スクリプトがあるのでコミットしない
+.testdata/
+
+# VJ 素材 (動画・音声・画像)。リポジトリを肥大化させるうえ、
+# 公開リポジトリでは素材の権利関係も問題になる。手元にのみ置く。
+素材/
+media/
+assets-local/
+
+# 実行ファイル。サイズが大きいため個別に配置する
+resources/ffmpeg/*
+!resources/ffmpeg/.gitkeep
+
+# .tmp は本来スクラッチだが、仕様書と実測記録はプロジェクトの中核成果物であり
+# PROJECT_STATUS.md からも参照されるため追跡する。
+# 生成物や一時ファイルは引き続き除外する。
+.tmp/*
+!.tmp/*.md
+!.tmp/poc-*.json
+
+# 機械固有の設定。パスや資格情報を含みうる
+.claude/symlinks/
+.claude/settings.local.json
+
+*.log
+.DS_Store
+Thumbs.db

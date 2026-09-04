@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PoC — Engine Host</title>
+    <style>
+      body {
+        margin: 0;
+        background: #000;
+        color: #ddd;
+        font: 13px/1.6 system-ui, sans-serif;
+      }
+      #log {
+        padding: 12px;
+        white-space: pre-wrap;
+      }
+      canvas {
+        display: block;
+        width: 320px;
+        height: 180px;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c" width="320" height="180"></canvas>
+    <div id="log"></div>
+    <script type="module">
+      const logEl = document.getElementById('log')
+      const say = (m) => {
+        logEl.textContent += m + '\n'
+        window.poc.log(m)
+      }
+
+      const quantile = (sorted, q) => {
+        if (sorted.length === 0) return null
+        const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))
+        return sorted[i]
+      }
+
+      /** PC001: WebGPU アダプタ取得の安定性と、実際に描画できるかまで確認する */
+      const testWebGpu = async () => {
+        const result = {
+          available: typeof navigator.gpu !== 'undefined',
+          adapterAttempts: 0,
+          adapterSuccesses: 0,
+          adapterInfo: null,
+          features: [],
+          limits: {},
+          deviceCreated: false,
+          renderSucceeded: false,
+          error: null,
+        }
+        if (!result.available) {
+          result.error = 'navigator.gpu is undefined'
+          return result
+        }
+
+        let lastAdapter = null
+        for (let i = 0; i < 10; i++) {
+          result.adapterAttempts++
+          try {
+            const a = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
+            if (a) {
+              result.adapterSuccesses++
+              lastAdapter = a
+            }
+          } catch (e) {
+            result.error = String(e)
+          }
+        }
+        if (!lastAdapter) {
+          result.error = result.error ?? 'requestAdapter returned null'
+          return result
+        }
+
+        const info = lastAdapter.info ?? {}
+        result.adapterInfo = {
+          vendor: info.vendor ?? null,
+          architecture: info.architecture ?? null,
+          device: info.device ?? null,
+          description: info.description ?? null,
+        }
+        result.features = [...lastAdapter.features]
+        // 設計上の上限判断に効くものだけ拾う
+        for (const k of [
+          'maxTextureDimension2D',
+          'maxBufferSize',
+          'maxStorageBufferBindingSize',
+          'maxUniformBufferBindingSize',
+          'maxColorAttachmentBytesPerSample',
+          'maxBindGroups',
+          'maxComputeWorkgroupStorageSize',
+        ]) {
+          if (k in lastAdapter.limits) result.limits[k] = lastAdapter.limits[k]
+        }
+
+        try {
+          const device = await lastAdapter.requestDevice()
+          result.deviceCreated = true
+
+          // アダプタが取れるだけでなく、実際に 1 フレーム描けることまで確認する。
+          // ここが通らないと「WebGPU が使える」とは言えない。
+          const canvas = document.getElementById('c')
+          const ctx = canvas.getContext('webgpu')
+          const format = navigator.gpu.getPreferredCanvasFormat()
+          ctx.configure({ device, format, alphaMode: 'opaque' })
+          const encoder = device.createCommandEncoder()
+          const pass = encoder.beginRenderPass({
+            colorAttachments: [
+              {
+                view: ctx.getCurrentTexture().createView(),
+                clearValue: { r: 0.1, g: 0.4, b: 0.2, a: 1 },
+                loadOp: 'clear',
+                storeOp: 'store',
+              },
+            ],
+          })
+          pass.end()
+          device.queue.submit([encoder.finish()])
+          await device.queue.onSubmittedWorkDone()
+          result.renderSucceeded = true
+          result.preferredCanvasFormat = format
+        } catch (e) {
+          result.error = String(e)
+        }
+        return result
+      }
+
+      /** PC008: rAF の刻みを計測する。focused / unfocused の 2 フェーズで比較する */
+      const measureRaf = (seconds, label) =>
+        new Promise((resolve) => {
+          const intervals = []
+          let last = performance.now()
+          const started = last
+          let hiddenFrames = 0
+          const tick = (now) => {
+            const dt = now - last
+            last = now
+            intervals.push(dt)
+            if (document.hidden) hiddenFrames++
+            if (now - started < seconds * 1000) {
+              requestAnimationFrame(tick)
+            } else {
+              // 1 フレーム目は計測開始のばらつきを含むので捨てる
+              const s = intervals.slice(1).sort((a, b) => a - b)
+              const elapsed = (now - started) / 1000
+              resolve({
+                label,
+                seconds: elapsed,
+                frames: intervals.length,
+                fps: intervals.length / elapsed,
+                intervalMs: {
+                  p50: quantile(s, 0.5),
+                  p95: quantile(s, 0.95),
+                  p99: quantile(s, 0.99),
+                  max: s.length ? s[s.length - 1] : null,
+                },
+                // 20ms 超 = 60fps で 1 フレーム以上落ちた回数
+                droppedOver20ms: s.filter((x) => x > 20).length,
+                hiddenFrames,
+                visibilityAtEnd: document.visibilityState,
+              })
+            }
+          }
+          requestAnimationFrame(tick)
+        })
+
+      const main = async () => {
+        const cfg = await window.poc.config()
+        say(`chromium=${navigator.userAgent.match(/Chrome\/([\d.]+)/)?.[1] ?? '?'}`)
+
+        say('— PC001: WebGPU —')
+        const webgpu = await testWebGpu()
+        say(
+          `  adapter ${webgpu.adapterSuccesses}/${webgpu.adapterAttempts}, ` +
+            `device=${webgpu.deviceCreated}, render=${webgpu.renderSucceeded}`,
+        )
+        if (webgpu.error) say(`  error: ${webgpu.error}`)
+
+        say(`— PC008: rAF (focused, ${cfg.seconds}s) —`)
+        const focused = await measureRaf(cfg.seconds, 'focused')
+        say(`  ${focused.fps.toFixed(2)} fps, p99=${focused.intervalMs.p99?.toFixed(2)}ms`)
+
+        window.poc.report({ phase: 'defocus' })
+        await new Promise((r) => setTimeout(r, 1500))
+
+        say(`— PC008: rAF (unfocused, ${cfg.seconds}s) —`)
+        const unfocused = await measureRaf(cfg.seconds, 'unfocused')
+        say(`  ${unfocused.fps.toFixed(2)} fps, p99=${unfocused.intervalMs.p99?.toFixed(2)}ms`)
+
+        // 遮蔽と最小化は Chromium 内部で別扱い。
+        // 最小化されると Page Visibility が hidden になり、
+        // backgroundThrottling: false でも rAF が止まりうる。
+        // 出力ウィンドウを誤って最小化する運用は現実にありうるので測っておく。
+        window.poc.report({ phase: 'minimize' })
+        await new Promise((r) => setTimeout(r, 1500))
+
+        const minSeconds = Math.min(cfg.seconds, 20)
+        say(`— PC008b: rAF (minimized, ${minSeconds}s) —`)
+        const minimized = await measureRaf(minSeconds, 'minimized')
+        say(
+          `  ${minimized.fps.toFixed(2)} fps, hidden=${minimized.hiddenFrames}/${minimized.frames}`,
+        )
+
+        window.poc.report({ phase: 'done', webgpu, raf: { focused, unfocused, minimized } })
+      }
+
+      main().catch((e) => {
+        say('FATAL ' + String(e))
+        window.poc.report({ phase: 'done', fatal: String(e) })
+      })
+    </script>
+  </body>
+</html>

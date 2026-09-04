@@ -1,0 +1,57 @@
+{
+  "name": "vjdj",
+  "version": "0.0.1",
+  "description": "VJ/DJ integrated tool - video compositing with musical synchronization",
+  "private": true,
+  "type": "module",
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
+    "typecheck:preload": "tsc -p tsconfig.preload.json --noEmit",
+    "typecheck:web": "tsc -p tsconfig.web.json --noEmit",
+    "typecheck": "npm run typecheck:node && npm run typecheck:preload && npm run typecheck:web",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
+    "test:gpu": "electron test/harness/main.mjs --suite=gpu",
+    "test:audio": "electron test/harness/main.mjs --suite=audio",
+    "test:all": "npm run test && npm run test:gpu && npm run test:audio",
+    "poc:platform": "electron poc/platform/main.mjs",
+    "poc:preview": "electron poc/preview/main.mjs",
+    "poc:audio": "electron poc/audio/main.mjs",
+    "test:handshake": "node scripts/handshake-stress.mjs",
+    "verify": "npm run lint && npm run typecheck && npm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.2.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^5.2.0",
+    "@webgpu/types": "^0.1.72",
+    "electron": "^43.4.1",
+    "electron-vite": "^5.0.0",
+    "eslint": "^10.8.1",
+    "eslint-config-prettier": "^10.1.8",
+    "fast-check": "^4.9.0",
+    "globals": "^17.11.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.67.0",
+    "vite": "^7.3.6",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  }
+}

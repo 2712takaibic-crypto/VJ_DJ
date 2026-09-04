@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PoC — Preview Receiver</title>
+    <style>
+      body {
+        margin: 0;
+        background: #101014;
+        color: #ddd;
+        font: 12px/1.5 system-ui, sans-serif;
+        padding: 8px;
+      }
+      canvas {
+        display: block;
+        border: 1px solid #333;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="preview" width="480" height="270"></canvas>
+    <div id="log"></div>
+    <script type="module">
+      const canvas = document.getElementById('preview')
+      const ctx = canvas.getContext('2d')
+      const logEl = document.getElementById('log')
+
+      const waitForPort = () =>
+        new Promise((resolve) => {
+          const onMessage = (e) => {
+            if (e.source !== window) return
+            if (!e.data || !(window.poc.envelope in e.data)) return
+            window.removeEventListener('message', onMessage)
+            const port = e.ports[0]
+            port.start()
+            resolve(port)
+          }
+          window.addEventListener('message', onMessage)
+          window.poc.ready()
+        })
+
+      const main = async () => {
+        const port = await waitForPort()
+        let received = 0
+
+        port.onmessage = (event) => {
+          const msg = event.data
+
+          if (msg.t === 'bitmap') {
+            // 受信時点の絶対時刻。engine の publishedAtAbs との差が表示遅延になる。
+            const arrivedAtAbs = performance.timeOrigin + performance.now()
+            const t0 = performance.now()
+            if (canvas.width !== msg.bitmap.width) {
+              canvas.width = msg.bitmap.width
+              canvas.height = msg.bitmap.height
+            }
+            ctx.drawImage(msg.bitmap, 0, 0, canvas.width, canvas.height)
+            // ImageBitmap は明示的に close しないとリークする
+            msg.bitmap.close()
+            received++
+            port.postMessage({
+              t: 'ack',
+              seq: msg.seq,
+              latencyMs: arrivedAtAbs - msg.publishedAtAbs,
+              drawMs: performance.now() - t0,
+            })
+            return
+          }
+
+          if (msg.t === 'pixels') {
+            const arrivedAtAbs = performance.timeOrigin + performance.now()
+            const t0 = performance.now()
+            // copyTextureToBuffer は bytesPerRow を 256 の倍数に揃える必要があるため
+            // 行にパディングが入る。それを詰め直すコストはこの経路の実コストの一部。
+            if (canvas.width !== msg.width) {
+              canvas.width = msg.width
+              canvas.height = msg.height
+            }
+            const src = new Uint8Array(msg.buffer)
+            const rowBytes = msg.width * 4
+            const tight = new Uint8ClampedArray(rowBytes * msg.height)
+            for (let y = 0; y < msg.height; y++) {
+              const from = y * msg.bytesPerRow
+              tight.set(src.subarray(from, from + rowBytes), y * rowBytes)
+            }
+            ctx.putImageData(new ImageData(tight, msg.width, msg.height), 0, 0)
+            received++
+            port.postMessage({
+              t: 'ack',
+              seq: msg.seq,
+              latencyMs: arrivedAtAbs - msg.publishedAtAbs,
+              drawMs: performance.now() - t0,
+            })
+            return
+          }
+
+          if (msg.t === 'phase') {
+            logEl.textContent = `${msg.name} … received=${received}`
+          }
+        }
+
+        window.poc.log('control ready')
+      }
+
+      main().catch((e) => window.poc.log('control FATAL ' + String(e)))
+    </script>
+  </body>
+</html>

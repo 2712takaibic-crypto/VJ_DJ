@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PoC — Audio Capability</title>
+    <style>
+      body {
+        margin: 0;
+        background: #101014;
+        color: #ddd;
+        font: 13px/1.7 system-ui, sans-serif;
+        padding: 16px;
+      }
+      #log {
+        white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script type="module">
+      const logEl = document.getElementById('log')
+      const say = (m) => {
+        logEl.textContent += m + '\n'
+        window.poc.log(m)
+      }
+
+      const quantile = (sorted, q) => {
+        if (!sorted.length) return null
+        const i = Math.min(sorted.length - 1, Math.max(0, Math.ceil(q * sorted.length) - 1))
+        return sorted[i]
+      }
+
+      /**
+       * PC003: 出力デバイスごとのチャンネル数を調べる。
+       * ch3/4 への独立出力 (ヘッドホンキュー) が成立するかの判断材料。
+       */
+      const probeDevices = async () => {
+        // ラベルを得るにはメディア権限が要る。取れなくても deviceId は列挙できる。
+        let labelsUnlocked = false
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          stream.getTracks().forEach((t) => t.stop())
+          labelsUnlocked = true
+        } catch {
+          /* ラベルなしで続行 */
+        }
+
+        const devices = (await navigator.mediaDevices.enumerateDevices()).filter(
+          (d) => d.kind === 'audiooutput',
+        )
+
+        const probed = []
+        for (const device of devices) {
+          const entry = {
+            deviceId: device.deviceId,
+            label: device.label || '(label unavailable)',
+            maxChannelCount: null,
+            sampleRate: null,
+            baseLatencyMs: null,
+            outputLatencyMs: null,
+            supportsIndependentCue: false,
+            error: null,
+          }
+          let ctx = null
+          try {
+            ctx = new AudioContext({ latencyHint: 'interactive' })
+            if (device.deviceId !== 'default' && typeof ctx.setSinkId === 'function') {
+              await ctx.setSinkId(device.deviceId)
+            }
+            await ctx.resume()
+            entry.maxChannelCount = ctx.destination.maxChannelCount
+            entry.sampleRate = ctx.sampleRate
+            entry.baseLatencyMs = ctx.baseLatency * 1000
+            entry.outputLatencyMs = ctx.outputLatency * 1000
+            // 設計書 §2.2.11: master=ch1/2, cue=ch3/4 に分けるには 4ch 以上が必要
+            entry.supportsIndependentCue = ctx.destination.maxChannelCount >= 4
+          } catch (e) {
+            entry.error = String(e)
+          } finally {
+            if (ctx) await ctx.close().catch(() => {})
+          }
+          probed.push(entry)
+        }
+        return { labelsUnlocked, devices: probed }
+      }
+
+      /** 4ch ルーティングが実際に構築できるかを確認する (音は出さない) */
+      const probeRouting = async () => {
+        const ctx = new AudioContext({ latencyHint: 'interactive' })
+        const result = { attempted: false, applied: false, channelCount: null, error: null }
+        try {
+          const max = ctx.destination.maxChannelCount
+          result.attempted = true
+          ctx.destination.channelCount = Math.min(4, max)
+          ctx.destination.channelCountMode = 'explicit'
+          ctx.destination.channelInterpretation = 'discrete'
+          const merger = ctx.createChannelMerger(4)
+          merger.connect(ctx.destination)
+          result.channelCount = ctx.destination.channelCount
+          result.applied = ctx.destination.channelCount === Math.min(4, max)
+        } catch (e) {
+          result.error = String(e)
+        } finally {
+          await ctx.close().catch(() => {})
+        }
+        return result
+      }
+
+      /** AudioWorklet が動くか (P2-8 の signalsmith-stretch の前提) */
+      const probeWorklet = async () => {
+        const ctx = new AudioContext()
+        const src = `
+          registerProcessor('poc-probe', class extends AudioWorkletProcessor {
+            process() { return true }
+          })`
+        const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }))
+        const result = { ok: false, quantumSize: 128, error: null }
+        try {
+          await ctx.audioWorklet.addModule(url)
+          const node = new AudioWorkletNode(ctx, 'poc-probe')
+          node.connect(ctx.destination)
+          result.ok = true
+        } catch (e) {
+          result.error = String(e)
+        } finally {
+          URL.revokeObjectURL(url)
+          await ctx.close().catch(() => {})
+        }
+        return result
+      }
+
+      /**
+       * 設計の中核検証: オーディオクロックと performance クロックの関係。
+       *
+       * Transport はアンカー方式で (音声時刻, tick) の 1 組から位置を計算する
+       * (設計書 §2.2.3)。その前提として getOutputTimestamp() が
+       * 安定した対応点を返すことを確認する。デバイスに依存しないので
+       * ヘッドホンだけでも意味のある結果が出る。
+       */
+      const WARMUP_MS = 1000
+
+      const probeClock = (seconds) =>
+        new Promise((resolve) => {
+          const ctx = new AudioContext({ latencyHint: 'interactive' })
+          void ctx.resume().then(() => {
+            const samples = []
+            const started = performance.now()
+            let reference = null
+            // 起動直後の挙動の記録。ここを取り違えると基準点がずれる。
+            const startup = { firstReading: null, msUntilRunning: null, discarded: 0 }
+
+            const tick = () => {
+              const ts = ctx.getOutputTimestamp()
+              const perfNow = performance.now()
+              const elapsed = perfNow - started
+
+              if (startup.firstReading === null) {
+                startup.firstReading = {
+                  contextTime: ts.contextTime ?? null,
+                  performanceTime: ts.performanceTime ?? null,
+                }
+              }
+
+              // デバイスが実際にレンダリングを始めるまで contextTime は 0 のまま。
+              // この期間の値を基準にすると、以降ずっと一定量ずれ続ける。
+              const running =
+                ts.contextTime !== undefined &&
+                ts.performanceTime !== undefined &&
+                ts.contextTime > 0 &&
+                ts.performanceTime > 0
+
+              if (running && startup.msUntilRunning === null) {
+                startup.msUntilRunning = elapsed
+              }
+
+              if (!running) {
+                startup.discarded++
+              } else if (reference === null) {
+                // さらに WARMUP_MS 待ってから基準を取る
+                if (elapsed >= (startup.msUntilRunning ?? 0) + WARMUP_MS) {
+                  reference = { ctx: ts.contextTime, perf: ts.performanceTime }
+                } else {
+                  startup.discarded++
+                }
+              } else {
+                const dCtx = (ts.contextTime - reference.ctx) * 1000
+                const dPerf = ts.performanceTime - reference.perf
+                samples.push({ dCtx, dPerf, skewMs: dCtx - dPerf })
+              }
+
+              if (elapsed < seconds * 1000 + WARMUP_MS) {
+                requestAnimationFrame(tick)
+              } else {
+                const skews = samples.map((s) => s.skewMs)
+                const sorted = [...skews].sort((a, b) => a - b)
+                const last = samples[samples.length - 1]
+                void ctx.close().catch(() => {})
+                resolve({
+                  seconds,
+                  sampleCount: samples.length,
+                  startup,
+                  measuredSpanMs: last ? last.dPerf : null,
+                  // 経過時間に対する乖離。音声クロックと系統クロックのずれ。
+                  finalSkewMs: last ? last.skewMs : null,
+                  driftPpm: last && last.dPerf > 0 ? (last.skewMs / last.dPerf) * 1e6 : null,
+                  skewMs: {
+                    p50: quantile(sorted, 0.5),
+                    p95: quantile(sorted, 0.95),
+                    max: sorted.length ? sorted[sorted.length - 1] : null,
+                    min: sorted.length ? sorted[0] : null,
+                  },
+                })
+              }
+            }
+            requestAnimationFrame(tick)
+          })
+        })
+
+      const main = async () => {
+        const cfg = await window.poc.config()
+
+        say('— PC003: 出力デバイスの列挙 —')
+        const deviceProbe = await probeDevices()
+        say(`  labels unlocked: ${deviceProbe.labelsUnlocked}`)
+        for (const d of deviceProbe.devices) {
+          say(
+            `  ${d.maxChannelCount ?? '?'}ch  ${d.sampleRate ?? '?'}Hz  ` +
+              `cue=${d.supportsIndependentCue ? 'YES' : 'no'}  ${d.label}`,
+          )
+          if (d.error) say(`      error: ${d.error}`)
+        }
+
+        say('')
+        say('— 4ch ルーティング構築 —')
+        const routing = await probeRouting()
+        say(`  applied=${routing.applied} channelCount=${routing.channelCount}`)
+        if (routing.error) say(`  error: ${routing.error}`)
+
+        say('')
+        say('— AudioWorklet —')
+        const worklet = await probeWorklet()
+        say(`  ok=${worklet.ok}${worklet.error ? ' error=' + worklet.error : ''}`)
+
+        say('')
+        say(`— オーディオクロック較正 (${cfg.seconds}s) —`)
+        const clock = await probeClock(cfg.seconds)
+        say(
+          `  samples=${clock.sampleCount} finalSkew=${clock.finalSkewMs?.toFixed(3)}ms ` +
+            `drift=${clock.driftPpm?.toFixed(1)}ppm`,
+        )
+
+        window.poc.report({ phase: 'done', deviceProbe, routing, worklet, clock })
+      }
+
+      main().catch((e) => {
+        say('FATAL ' + String(e) + '\n' + (e.stack ?? ''))
+        window.poc.report({ phase: 'done', fatal: String(e) })
+      })
+    </script>
+  </body>
+</html>

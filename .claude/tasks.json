@@ -1,0 +1,78 @@
+{
+  "project": {
+    "name": "VJDJ",
+    "type": "VJ/DJ 統合ツール (Electron + TypeScript / WebGPU + WebCodecs + Web Audio)",
+    "startDate": "2026-08-18"
+  },
+  "latestUpdate": "2026-08-19",
+  "status": "仕様策定 (Stage 1〜4) 完了。実装は Phase 0 (基盤と PoC) に着手し、22 タスク中 7 完了。PoC 8 項目のうち 4 項目が決着し、設計の 3 大リスクのうち R-1 (プレビュー転送) と R-2 (ヘッドホンキュー) が解消。テスト基盤は 3 層すべて稼働 (層1: 9 テスト 366ms / 層2 GPU: 3 / 層3 音声: 3)。次は P0-7 テストデータ生成、P0-9〜12 TempoMap/Transport。",
+  "completedFeatures": [
+    "【Stage 1】要件定義 .tmp/requirements.md — 機能要件 (共通基盤/VJ/DJ/DAW/書き出し)、非機能要件 NF-1〜8、技術要件、Phase 0〜7 の分割、リスク R-1〜7",
+    "【Stage 2】詳細設計 .tmp/design.md — Engine Host 集約構成、二系統 IPC、アンカー方式 Transport、レンダーグラフ、クロマキー 4 パス、確定挙動 D-1〜D-8",
+    "【Stage 3】テスト設計 .tmp/test_design.md — 5 層のテスト階層、決定性プロパティテストを合格ゲートに、テストケース約 300 件を ID 付きで定義",
+    "【Stage 4】タスク分解 .tmp/tasks.md — Phase 0〜4 を 92 タスク / 約 320 時間に分解。Phase 0/1 はコミット単位まで",
+    "【P0-1】プロジェクト初期化 — electron-vite + TS strict、CLAUDE.md 規約 (no any / no unknown / no class) を ESLint で機械的に強制し、違反が lint で落ちることを実測確認",
+    "【P0-2】プラットフォーム能力 PoC — PC001 WebGPU PASS (アダプタ 10/10、フラグ不要、実描画まで確認) / PC008 背景スロットリング PASS (非フォーカス・遮蔽・最小化の 3 状態で 300 秒 60fps 維持、ドロップ 0)",
+    "【P0-3】2 ウィンドウ構成と MessageChannel — WindowManager、レンダラ主導ハンドシェイクによるポート配布、S001-R 100 回連続起動 100/100 成功 (RTT p50 0.50ms)",
+    "【P0-4】プレビュー転送 PoC (PC002) — ImageBitmap 経路と copyTextureToBuffer 経路を同一条件で比較。解像度スケーリング特性の差で ImageBitmap を採用確定",
+    "【P0-5】音声デバイス能力 PoC (PC003) — AudioWorklet PASS、オーディオクロック PASS (60 秒で乖離 0.103ms / 1.7ppm)。キューはスコープ外で確定",
+    "【P0-6】テスト基盤 — Vitest 層 1 (Node) + Electron 専用ランナーによる層 2 (GPU) / 層 3 (音声)。FakeClockSource、LeakDetector、fast-check 導入",
+    "【P0-8】単位型 — Ticks / Seconds / AudioTime / PerfTime / Samples / FrameIndex / Beats の branded type、PPQ=960、roundTicks / ticksNearlyEqual"
+  ],
+  "resolvedIssues": [
+    {
+      "issue": "R-1 ウィンドウ間でGPUテクスチャを共有できずプレビュー転送がボトルネックになる",
+      "resolution": "MessageChannelMain でポートのみ仲介し、ImageBitmap をレンダラ間で直接 transfer する方式で解決。PC002 で実測し、engine 側コストは解像度に対してほぼ定数 (1080p でも 0.4ms)。設計時に想定した「360p まで落とす」妥協は不要になった"
+    },
+    {
+      "issue": "R-2 Web Audio でヘッドホンキューを実現できない",
+      "resolution": "ユーザーがオーディオインターフェースを保有せず購入予定もないため、ヘッドホンキュー (F-D3) をスコープ外として確定。リスクではなく確定した制約になった。DJ 機能は 1 系統出力・キューなしを前提に設計する"
+    }
+  ],
+  "currentIssues": [
+    {
+      "issue": "Git 管理下にない",
+      "description": "リポジトリが初期化されていないため、版管理も pre-commit フック (husky) も未設定。すでに 40 ファイル規模で Phase 1 でさらに増える。ユーザーの判断待ち"
+    },
+    {
+      "issue": "設計書に未反映の実測知見が 10 件",
+      "description": ".tmp/poc-results.md の「設計書へ反映すべき事項」に列挙済み。特に 8 と 9 (ClockSource の較正確立待ちと平滑化) は P0-11 の実装で必須。型と FakeClockSource には既に埋め込み済み"
+    },
+    {
+      "issue": "maxBindGroups が 4 という実制約",
+      "description": "設計書に記載のなかった GPU の制約。合成パイプラインのバインドグループ設計をこの数に収める必要がある (P1-3 で効く)"
+    },
+    {
+      "issue": "2 画面目の scaleFactor が 1.5",
+      "description": "フルスクリーン出力時に devicePixelRatio 込みで canvas のバッキングストアサイズを決める処理が必要。P1-19 で見落とすと確実にボケる"
+    }
+  ],
+  "plannedFeatures": [
+    "【Phase 0 残り 15 タスク】P0-7 テストデータ生成 / P0-9,10 TempoMap / P0-11,12 Transport (PoC 知見 2 件の組み込み必須) / P0-13〜17 プロジェクトスキーマ・ProjectStore・Undo・JSON Patch・IPC・永続化 / P0-18〜20 FFmpeg 実行基盤・Probe・Proxy / P0-21 エラー基盤 / P0-22 セキュリティ",
+    "【Phase 1】VJ MVP 25 タスク — GpuContext とデバイスロスト復旧、TexturePool、ユニフォームパッキング、RenderPlan、ブレンドモード、EffectRegistry、WebCodecs デコード、ClipPlayer、クロマキー 4 パス、出力ウィンドウ、PreviewPublisher、Control UI。完了判定はシナリオ 3",
+    "【Phase 2】音声と同期 16 タスク — AudioBackend (P2-1 で抽象化廃止を判断)、EQ/フィルタ、LookaheadScheduler、signalsmith-stretch、essentia.js 解析、ModulationEngine",
+    "【Phase 3】書き出し 13 タスク — OfflineRenderer、決定性レンダリング、FFmpeg 多重化。P3-12 (再起動を挟んでバイト一致) と P3-13 (A/V ずれ 1 フレーム以内) が全体の検収に相当",
+    "【Phase 4】タイムライン編集 16 タスク — Canvas 2D 描画、クリップ操作、キーフレーム、拍スナップ、MIDI コントロールサーフェス",
+    "【Phase 5〜7】DJ / DAW / 高度化 — 設計書は拡張点のみ定義。各フェーズ着手時に別途分解する",
+    "【残り PoC 4 項目】PC004 多レイヤーデコード・PC007 VRAM (P1-24) / PC005 ストレッチ CPU 負荷・PC006 30 分 A/V ずれ (P2-16)"
+  ],
+  "mainDocuments": [
+    "PROJECT_STATUS.md - 進捗レポート (/progress で更新)",
+    "plan.txt - 元の要望 (4 行)",
+    ".tmp/requirements.md - Stage 1 要件定義",
+    ".tmp/design.md - Stage 2 詳細設計。§10.5 に確定挙動 D-1〜D-8",
+    ".tmp/test_design.md - Stage 3 テスト設計。テストケース ID の正",
+    ".tmp/tasks.md - Stage 4 タスク分解 92 件",
+    ".tmp/poc-results.md - PoC 実測記録。判断の根拠。設計書へ反映すべき事項 10 件を列挙",
+    ".tmp/perf-baseline.md - 性能基準線 (追記式)。フェーズをまたいだ劣化検出用",
+    "src/main/windows/manager.ts - ウィンドウ生成とポート配布 (レース対策の要)",
+    "src/shared/protocol/ - DOM 非依存の型。main からも参照される",
+    "src/shared/renderer/ - レンダラ専用の共有コード (connect.ts がポート受信の順序を保証)",
+    "src/shared/units/index.ts - branded type。取り違えを型検査で防ぐ",
+    "src/engine/clock/types.ts - ClockSource。PoC で判明した罠を型と契約に埋め込み済み",
+    "test/harness/ - 層 2/3 の Electron テストランナー (Vite dev server 相乗り)",
+    "test/fakes/clock.ts - FakeClockSource。実時間なしで 30 分/2 時間のドリフト検証を行う",
+    "poc/platform/ poc/preview/ poc/audio/ - PoC 計測ハーネス。npm run poc:* で再実行可能",
+    "build/aliases.json - パスエイリアスの唯一の定義元"
+  ]
+}

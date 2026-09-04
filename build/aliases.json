@@ -1,0 +1,8 @@
+{
+  "@shared": "src/shared",
+  "@main": "src/main",
+  "@engine": "src/engine",
+  "@ui": "src/ui",
+  "@workers": "src/workers",
+  "@test": "test"
+}
