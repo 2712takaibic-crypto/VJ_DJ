@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { VjdjApi } from '@shared/protocol/api'
-import { PORT_ENVELOPE } from '@shared/protocol/realtime'
+import { PORT_ENVELOPE } from '@shared/renderer/realtime'
 import { isWindowRole, ROLE_ARG_PREFIX, type WindowRole } from '@shared/protocol/window'
 
 /**

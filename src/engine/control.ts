@@ -1,6 +1,6 @@
 import type { StageRenderer } from './stage/renderer'
 import type { Show } from './show/show'
-import type { ShowParams, ShowParamsPatch } from './show/params'
+import type { ShowParams, ShowParamsPatch } from '@shared/protocol/show-params'
 
 /**
  * 外部からショーを操作するための窓口。

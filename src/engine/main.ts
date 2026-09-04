@@ -1,10 +1,11 @@
-import type { ControlToEngine, EngineToControl } from '@shared/protocol/realtime'
+import type { ControlToEngine, EngineToControl } from '@shared/renderer/realtime'
 import { connectRealtimePort } from '@shared/renderer/connect'
 import '@shared/renderer/globals'
 import { createStageRenderer } from './stage/renderer'
 import { runExport } from './show/export'
 import { createShow, SHOT_COUNT } from './show/show'
 import { installController } from './control'
+import { createPreviewPublisher } from './preview'
 
 /**
  * Engine Host のエントリポイント。
@@ -29,6 +30,22 @@ if (!(canvas instanceof HTMLCanvasElement)) {
   throw new Error('output canvas not found in engine/index.html')
 }
 
+/**
+ * Control Window からのメッセージを処理する。
+ *
+ * ハンドラは起動の各段階で差し替わる。show の生成前に届いた
+ * パラメータ変更を捨てないよう、hello だけは常に応答する。
+ */
+type EngineHandlers = {
+  onParams?: (message: Extract<ControlToEngine, { t: 'params' }>) => void
+  onTransport?: (message: Extract<ControlToEngine, { t: 'transport' }>) => void
+  onSeek?: (message: Extract<ControlToEngine, { t: 'seek' }>) => void
+  onPreviewAck?: (message: Extract<ControlToEngine, { t: 'previewAck' }>) => void
+  onPreviewConfig?: (message: Extract<ControlToEngine, { t: 'previewConfig' }>) => void
+}
+
+const handlers: EngineHandlers = {}
+
 const handle = (port: MessagePort, message: ControlToEngine): void => {
   switch (message.t) {
     case 'hello': {
@@ -40,6 +57,21 @@ const handle = (port: MessagePort, message: ControlToEngine): void => {
       port.postMessage(ack)
       return
     }
+    case 'params':
+      handlers.onParams?.(message)
+      return
+    case 'transport':
+      handlers.onTransport?.(message)
+      return
+    case 'seek':
+      handlers.onSeek?.(message)
+      return
+    case 'previewAck':
+      handlers.onPreviewAck?.(message)
+      return
+    case 'previewConfig':
+      handlers.onPreviewConfig?.(message)
+      return
   }
 }
 
@@ -114,6 +146,27 @@ const start = async (): Promise<void> => {
   })
   console.info('[engine] controller installed (window.__vjdjControl)')
 
+  // --- Control Window との連携 ---
+  const preview = createPreviewPublisher(port)
+  handlers.onParams = (message) => {
+    show.patchParams(message.patch)
+  }
+  handlers.onTransport = (message) => {
+    playing = message.action === 'play'
+  }
+  handlers.onSeek = (message) => {
+    showTime = Math.max(0, Math.min(show.durationSeconds, message.seconds))
+  }
+  handlers.onPreviewAck = (message) => {
+    preview.ack(message.seq)
+  }
+  handlers.onPreviewConfig = (message) => {
+    preview.configure(message.width, message.fps)
+  }
+
+  let lastStateSent = 0
+  let measuredFps = 0
+
   const tick = (now: number): void => {
     const delta = (now - lastNow) / 1000
     lastNow = now
@@ -129,9 +182,28 @@ const start = async (): Promise<void> => {
       }
     }
 
+    preview.publish(canvas, now)
+
+    // 状態は 10Hz で足りる。UI の表示を合わせるだけなので
+    // 毎フレーム送ると無駄に帯域を使う。
+    if (now - lastStateSent >= 100) {
+      lastStateSent = now
+      const state: EngineToControl = {
+        t: 'state',
+        params: show.getParams(),
+        timeSeconds: showTime,
+        playing,
+        duration: show.durationSeconds,
+        bpm: show.analysis.data.tempo.bpm,
+        fps: measuredFps,
+      }
+      port.postMessage(state)
+    }
+
     frames++
     if (now - lastReport >= 5000) {
-      console.info(`[engine] ${((frames * 1000) / (now - lastReport)).toFixed(1)} fps`)
+      measuredFps = (frames * 1000) / (now - lastReport)
+      console.info(`[engine] ${measuredFps.toFixed(1)} fps`)
       frames = 0
       lastReport = now
     }

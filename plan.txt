@@ -51,13 +51,13 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
  ・カメラワーク (4小節ごとのショット切り替え)
  ・mp4書き出し (決定的レンダリング。実時間より速い)
  ・MCP経由でのAI操作 (画を見ながら調整できる)
+ ・人間向けUI (プレビュー / トランスポート / パラメータ操作)
 
 ■ 未実装 (ツール完成に必要)
 
  ・3D_GamingSystem の fx-editor 素材の取り込み
    (beam_exp / electric_beam / electric_bolt / explosion /
     spark / thunder_effect / totem など)
- ・UIで人間が操作する画面
  ・DJ機能一式 (サンプリング、ミキシング)
  ・DAW機能 (打ち込み、シーケンサー)
  ・様々な音声/映像フォーマットの取り込み

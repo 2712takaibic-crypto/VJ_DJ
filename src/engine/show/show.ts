@@ -9,7 +9,7 @@ import {
   DEFAULT_SHOW_PARAMS,
   type ShowParams,
   type ShowParamsPatch,
-} from './params'
+} from '@shared/protocol/show-params'
 
 /**
  * MV 本体。

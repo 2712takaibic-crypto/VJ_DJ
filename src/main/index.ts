@@ -76,8 +76,10 @@ const runCapture = async (windows: WindowManager, outputPath: string): Promise<n
   const waitMs = Number(process.env['VJDJ_CAPTURE_DELAY_MS'] ?? '6000')
   await new Promise((resolve) => setTimeout(resolve, waitMs))
 
+  // 既定は Engine Host。UI の確認では Control Window を指定する。
+  const target = process.env['VJDJ_CAPTURE_TARGET'] === 'control' ? windows.control : windows.engine
   try {
-    const image = await windows.engine.webContents.capturePage()
+    const image = await target.webContents.capturePage()
     const png = image.toPNG()
     await writeFile(outputPath, png)
     const size = image.getSize()

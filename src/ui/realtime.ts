@@ -1,12 +1,15 @@
 import type { HandshakeStatus } from '@shared/protocol/handshake'
-import type { ControlToEngine, EngineToControl } from '@shared/protocol/realtime'
+import type { ControlToEngine, EngineToControl } from '@shared/renderer/realtime'
 import { connectRealtimePort } from '@shared/renderer/connect'
 import '@shared/renderer/globals'
 
 const HELLO_TIMEOUT_MS = 5_000
 
-const awaitAck = (port: MessagePort, seq: number): Promise<EngineToControl> =>
-  new Promise<EngineToControl>((resolve, reject) => {
+/** ハンドシェイクの応答だけを取り出した型 */
+type HelloAck = Extract<EngineToControl, { t: 'hello-ack' }>
+
+const awaitAck = (port: MessagePort, seq: number): Promise<HelloAck> =>
+  new Promise<HelloAck>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(`hello-ack did not arrive within ${String(HELLO_TIMEOUT_MS)}ms`))
     }, HELLO_TIMEOUT_MS)

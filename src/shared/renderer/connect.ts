@@ -1,4 +1,4 @@
-import { isPortEnvelope } from '@shared/protocol/realtime'
+import { isPortEnvelope } from '@shared/renderer/realtime'
 import '@shared/renderer/globals'
 
 /**
