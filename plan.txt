@@ -44,6 +44,7 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
  ・Three.js WebGPU による3D空間への合成
  ・UnrealBloom 相当のポストプロセス (TSL版 bloom)
  ・レーザービーム
+ ・電撃エフェクト
  ・パーティクル
  ・LEDウォール / トラス / 床グリッド / ステージ照明
  ・音楽同期 (BPM 130.009 / ビートグリッド / 帯域別エンベロープ)
@@ -53,7 +54,6 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
 
 ■ 未実装 (ツール完成に必要)
 
- ・電撃エフェクト
  ・3D_GamingSystem の fx-editor 素材の取り込み
    (beam_exp / electric_beam / electric_bolt / explosion /
     spark / thunder_effect / totem など)

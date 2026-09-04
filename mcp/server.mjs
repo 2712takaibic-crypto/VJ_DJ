@@ -233,6 +233,24 @@ server.registerTool(
   },
 )
 
+server.registerTool(
+  'set_lightning',
+  {
+    title: '電撃を調整',
+    description:
+      '小節頭で閃く稲妻。intensity を上げると発生頻度と明るさが上がる。' +
+      '拍から決定的に形状を生成するので、書き出しても同じ絵になる。',
+    inputSchema: {
+      enabled: z.boolean().optional(),
+      intensity: z.number().min(0).max(3).optional(),
+    },
+  },
+  async (args) => {
+    const state = await call('/params', { lightning: args })
+    return { content: [{ type: 'text', text: JSON.stringify(state.params.lightning, null, 2) }] }
+  },
+)
+
 // ---------------------------------------------------------------- 再生
 
 server.registerTool(
