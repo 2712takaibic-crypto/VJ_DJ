@@ -35,8 +35,9 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
    1920x1080 / 30fps / 90.47秒 / H.264 + AAC
    hikari.m4a を音源、green_back.mp4 をグリーンバック素材として使用
 
-[未達] ツールの完成
-   下記のとおり未実装の機能が残っている。
+[達成] ツールの完成
+   plan.txt に挙がっていた機能はすべて実装した。
+   下記「今後の改善余地」は必須ではない品質向上項目。
 
 ■ 実装済み
 
@@ -53,6 +54,7 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
  ・mp4書き出し (決定的レンダリング。実時間より速い)
  ・fx-editor の手続き的テクスチャの移植 (soft/glow/ring/spark 等)
  ・DJ機能 (2デッキ / 3バンドEQ / クロスフェーダー / サンプラー)
+ ・DAW機能 (16ステップシーケンサー / 内蔵シンセ)
  ・音声再生エンジン (それまでプレビューは無音だった)
  ・MCP経由でのAI操作 (画を見ながら調整できる)
  ・人間向けUI (プレビュー / トランスポート / パラメータ操作 / 素材ライブラリ)
@@ -60,7 +62,10 @@ https://threejs.org/examples/#webgl_postprocessing_unreal_bloomのような効�
 
 ■ 未実装 (ツール完成に必要)
 
- ・DAW機能 (打ち込み、シーケンサー)
+ (plan.txt に挙がっていた項目はすべて実装済み)
+
+■ 今後の改善余地
+
 
 ■ 素材の制約 (画質に影響)
 

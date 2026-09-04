@@ -22,6 +22,20 @@ export type DjStatePayload = {
   readonly masterGain: number
   readonly level: number
   readonly pads: readonly { readonly index: number; readonly name: string }[]
+  readonly sequencer: SequencerPayload
+}
+
+/** シーケンサーの状態 */
+export type SequencerPayload = {
+  readonly playing: boolean
+  readonly bpm: number
+  readonly stepsPerBar: number
+  readonly currentStep: number
+  readonly tracks: readonly {
+    readonly name: string
+    readonly steps: readonly number[]
+    readonly muted: boolean
+  }[]
 }
 
 /**
@@ -82,6 +96,16 @@ export type ControlToEngine =
   | { readonly t: 'djMaster'; readonly value: number }
   | { readonly t: 'djLoadPad'; readonly index: number; readonly url: string; readonly name: string }
   | { readonly t: 'djTriggerPad'; readonly index: number }
+  // --- DAW (シーケンサー) ---
+  | { readonly t: 'seqTransport'; readonly action: 'start' | 'stop' }
+  | { readonly t: 'seqBpm'; readonly bpm: number }
+  | {
+      readonly t: 'seqStep'
+      readonly track: number
+      readonly step: number
+      readonly velocity: number
+    }
+  | { readonly t: 'seqMute'; readonly track: number; readonly muted: boolean }
 
 export type EngineToControl =
   | {

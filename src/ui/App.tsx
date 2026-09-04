@@ -4,6 +4,7 @@ import { connectEngine, type EngineLink, type EngineState } from './engine-link'
 import { Section, Slider, Toggle } from './controls'
 import { Library } from './library'
 import { DjPanel } from './dj'
+import { SequencerPanel } from './sequencer'
 
 /**
  * Control Window。
@@ -154,6 +155,7 @@ export const App = (): JSX.Element => {
         />
 
         {link !== null && <DjPanel link={link} />}
+        {link !== null && <SequencerPanel link={link} />}
 
         <Section title="クロマキー">
           <Slider

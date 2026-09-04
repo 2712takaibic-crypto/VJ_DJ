@@ -41,6 +41,12 @@ export type EngineLink = {
   djLoadPad(index: number, url: string, name: string): void
   djTriggerPad(index: number): void
   onDjState(handler: (state: DjStatePayload) => void): () => void
+
+  // --- DAW (シーケンサー) ---
+  seqTransport(action: 'start' | 'stop'): void
+  seqBpm(bpm: number): void
+  seqStep(track: number, step: number, velocity: number): void
+  seqMute(track: number, muted: boolean): void
   /** 状態が届くたびに呼ばれる (約 10Hz) */
   onState(handler: (state: EngineState) => void): () => void
   /** プレビュー画像が届くたびに呼ばれる。使い終えたら close すること */
@@ -146,6 +152,19 @@ export const connectEngine = async (): Promise<EngineLink> => {
     djTriggerPad: (index) => {
       send({ t: 'djTriggerPad', index })
     },
+    seqTransport: (action) => {
+      send({ t: 'seqTransport', action })
+    },
+    seqBpm: (bpm) => {
+      send({ t: 'seqBpm', bpm })
+    },
+    seqStep: (track, step, velocity) => {
+      send({ t: 'seqStep', track, step, velocity })
+    },
+    seqMute: (track, muted) => {
+      send({ t: 'seqMute', track, muted })
+    },
+
     onDjState: (handler) => {
       djHandlers.add(handler)
       return () => djHandlers.delete(handler)

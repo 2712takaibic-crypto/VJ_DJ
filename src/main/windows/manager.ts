@@ -37,6 +37,7 @@ const rendererEntry = (
   const audioTest = process.env['VJDJ_AUDIO_TEST']
   if (role === 'engine' && audioTest !== undefined && audioTest !== '')
     query['audioTest'] = audioTest
+  if (role === 'engine' && process.env['VJDJ_SEQ_TEST'] === '1') query['seqTest'] = '1'
 
   const devServerUrl = process.env['ELECTRON_RENDERER_URL']
   if (devServerUrl !== undefined) {

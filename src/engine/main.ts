@@ -256,6 +256,19 @@ const start = async (): Promise<void> => {
       case 'djTriggerPad':
         dj.sampler.trigger(message.index)
         return
+      case 'seqTransport':
+        if (message.action === 'start') dj.sequencer.start()
+        else dj.sequencer.stop()
+        return
+      case 'seqBpm':
+        dj.sequencer.setBpm(message.bpm)
+        return
+      case 'seqStep':
+        dj.sequencer.setStep(message.track, message.step, message.velocity)
+        return
+      case 'seqMute':
+        dj.sequencer.setMuted(message.track, message.muted)
+        return
       default:
         return
     }
@@ -305,6 +318,17 @@ const start = async (): Promise<void> => {
           masterGain: djState.mixer.masterGain,
           level: djState.level,
           pads: djState.pads.map((pad) => ({ index: pad.index, name: pad.name })),
+          sequencer: {
+            playing: djState.sequencer.playing,
+            bpm: djState.sequencer.bpm,
+            stepsPerBar: djState.sequencer.stepsPerBar,
+            currentStep: djState.sequencer.currentStep,
+            tracks: djState.sequencer.tracks.map((track) => ({
+              name: track.name,
+              steps: track.steps,
+              muted: track.muted,
+            })),
+          },
         },
       }
       port.postMessage(djMessage)
@@ -320,6 +344,42 @@ const start = async (): Promise<void> => {
     requestAnimationFrame(tick)
   }
   requestAnimationFrame(tick)
+
+  // VJDJ_SEQ_TEST=1 でシーケンサーを検証する。
+  // 「打ち込んだパターンが鳴るか」は画では分からないので、レベルを測る。
+  if (new URLSearchParams(location.search).get('seqTest') === '1') {
+    void (async () => {
+      try {
+        await ensureAudio()
+        dj.setMasterGain(0.9)
+        // 4 つ打ち + オフビートのハット
+        for (let step = 0; step < 16; step += 4) dj.sequencer.setStep(0, step, 0.95)
+        for (let step = 2; step < 16; step += 4) dj.sequencer.setStep(2, step, 0.6)
+        dj.sequencer.setStep(1, 4, 0.85)
+        dj.sequencer.setStep(1, 12, 0.85)
+        dj.sequencer.setBpm(130)
+        dj.sequencer.start()
+
+        await new Promise((resolve) => setTimeout(resolve, 300))
+        let peak = 0
+        let hits = 0
+        for (let i = 0; i < 60; i++) {
+          const level = dj.engine.getLevel()
+          if (level > 0.05) hits++
+          peak = Math.max(peak, level)
+          await new Promise((resolve) => setTimeout(resolve, 30))
+        }
+        const seq = dj.sequencer.getState()
+        console.info(
+          `SEQTEST playing=${String(seq.playing)} bpm=${String(seq.bpm)} ` +
+            `step=${String(seq.currentStep)} peak=${peak.toFixed(4)} loudFrames=${String(hits)}/60`,
+        )
+        dj.sequencer.stop()
+      } catch (error) {
+        console.error(`SEQTEST FAIL ${error instanceof Error ? error.message : String(error)}`)
+      }
+    })()
+  }
 
   // VJDJ_AUDIO_TEST=<音源URL> で音声経路を検証して結果をログに出す。
   // 「鳴っているか」は画では分からないので、レベルを測って確かめる。

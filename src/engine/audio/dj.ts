@@ -1,6 +1,8 @@
 import { createAudioEngine, type AudioEngine } from './engine'
 import { createMixer, type CrossfaderCurve, type Mixer, type MixerState } from './mixer'
 import { createSampler, type Sampler, type SamplerPad } from './sampler'
+import { createSequencer, type Sequencer, type SequencerState } from './sequencer'
+import { createSynth, type Synth } from './synth'
 
 /**
  * DJ セクション全体。
@@ -17,12 +19,15 @@ export type DjState = {
   readonly mixer: MixerState
   readonly pads: readonly SamplerPad[]
   readonly level: number
+  readonly sequencer: SequencerState
 }
 
 export type Dj = {
   readonly engine: AudioEngine
   readonly mixer: Mixer
   readonly sampler: Sampler
+  readonly synth: Synth
+  readonly sequencer: Sequencer
   /** デッキへ曲を読み込む */
   loadDeck(deck: 'A' | 'B', url: string, name: string, bpm: number | null): Promise<void>
   /** サンプラーのパッドへ音を割り当てる */
@@ -45,6 +50,9 @@ export const createDj = (): Dj => {
   const mixer = createMixer(engine.context, engine.master)
   const sampler = createSampler(engine.context)
   sampler.output.connect(engine.master)
+  const synth = createSynth(engine.context)
+  synth.output.connect(engine.master)
+  const sequencer = createSequencer(engine.context, synth, sampler)
 
   let masterGain = 0.9
 
@@ -52,6 +60,8 @@ export const createDj = (): Dj => {
     engine,
     mixer,
     sampler,
+    synth,
+    sequencer,
 
     loadDeck: async (deck, url, name, bpm) => {
       const buffer = await decode(engine.context, url)
@@ -82,9 +92,12 @@ export const createDj = (): Dj => {
       mixer: mixer.getState(masterGain),
       pads: sampler.listPads(),
       level: engine.getLevel(),
+      sequencer: sequencer.getState(),
     }),
 
     dispose: async () => {
+      sequencer.dispose()
+      synth.dispose()
       sampler.dispose()
       mixer.dispose()
       await engine.dispose()
