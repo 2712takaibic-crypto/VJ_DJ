@@ -28,7 +28,7 @@ export const createPerformer = (
   keyParams: Partial<ChromaKeyParams> = {},
   heightMeters = 4.6,
 ): Performer => {
-  const keyMaterial = createChromaKeyMaterial(texture, keyParams)
+  const keyMaterial = createChromaKeyMaterial(texture, sourceWidth, sourceHeight, keyParams)
 
   const geometry = new THREE.PlaneGeometry(1, 1)
   const mesh = new THREE.Mesh(geometry, keyMaterial.material)
