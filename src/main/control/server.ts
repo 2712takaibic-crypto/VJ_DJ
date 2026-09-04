@@ -21,6 +21,33 @@ export type ControlServer = {
 
 type Handler = (body: RawValue) => Promise<RawValue>
 
+/**
+ * リクエストボディから値を取り出すヘルパ。
+ *
+ * RawValue はオブジェクトや配列にもなりうるので、
+ * String() / Number() をそのまま当てると
+ * '[object Object]' や NaN が静かに通ってしまう。
+ * 期待した型でなければ既定値へ落とす。
+ */
+/** `Array.isArray` は readonly 配列を十分に絞り込めないので、明示的な述語にする */
+const isRecord = (value: RawValue): value is { readonly [k: string]: RawValue } =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const asRecord = (body: RawValue): { readonly [k: string]: RawValue } =>
+  isRecord(body) ? body : {}
+
+const readString = (body: RawValue, key: string, fallback = ''): string => {
+  const value = asRecord(body)[key]
+  return typeof value === 'string' ? value : fallback
+}
+
+const readNumber = (body: RawValue, key: string, fallback: number): number => {
+  const value = asRecord(body)[key]
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback
+}
+
+const readBoolean = (body: RawValue, key: string): boolean => asRecord(body)[key] === true
+
 const readBody = async (request: IncomingMessage): Promise<RawValue> => {
   const chunks: Buffer[] = []
   for await (const chunk of request) chunks.push(chunk as Buffer)
@@ -62,42 +89,16 @@ export const startControlServer = async (
   const routes: Record<string, Handler> = {
     '/state': () => callRenderer(engineWindow, 'getState', []),
     '/params': (body) => callRenderer(engineWindow, 'setParams', [body ?? {}]),
-    '/seek': (body) => {
-      const seconds =
-        typeof body === 'object' && body !== null && !Array.isArray(body)
-          ? Number((body as { [k: string]: RawValue })['seconds'] ?? 0)
-          : 0
-      return callRenderer(engineWindow, 'seek', [seconds])
-    },
-    '/playing': (body) => {
-      const playing =
-        typeof body === 'object' && body !== null && !Array.isArray(body)
-          ? (body as { [k: string]: RawValue })['playing'] === true
-          : false
-      return callRenderer(engineWindow, 'setPlaying', [playing])
-    },
-    '/setVideoSource': (body) => {
-      const url =
-        typeof body === 'object' && body !== null && !Array.isArray(body)
-          ? String((body as { [k: string]: RawValue })['url'] ?? '')
-          : ''
-      return callRenderer(engineWindow, 'setVideoSource', [url])
-    },
-    '/setAudioSource': (body) => {
-      const url =
-        typeof body === 'object' && body !== null && !Array.isArray(body)
-          ? String((body as { [k: string]: RawValue })['url'] ?? '')
-          : ''
-      return callRenderer(engineWindow, 'setAudioSource', [url])
-    },
+    '/seek': (body) => callRenderer(engineWindow, 'seek', [readNumber(body, 'seconds', 0)]),
+    '/playing': (body) => callRenderer(engineWindow, 'setPlaying', [readBoolean(body, 'playing')]),
+    '/setVideoSource': (body) =>
+      callRenderer(engineWindow, 'setVideoSource', [readString(body, 'url')]),
+    '/setAudioSource': (body) =>
+      callRenderer(engineWindow, 'setAudioSource', [readString(body, 'url')]),
     '/capture': (body) => {
-      const record =
-        typeof body === 'object' && body !== null && !Array.isArray(body)
-          ? (body as { [k: string]: RawValue })
-          : {}
-      const seconds = record['seconds'] === undefined ? null : Number(record['seconds'])
-      const maxWidth = Number(record['maxWidth'] ?? 900)
-      return callRenderer(engineWindow, 'capture', [seconds, maxWidth])
+      const seconds =
+        asRecord(body)['seconds'] === undefined ? null : readNumber(body, 'seconds', 0)
+      return callRenderer(engineWindow, 'capture', [seconds, readNumber(body, 'maxWidth', 900)])
     },
   }
 
