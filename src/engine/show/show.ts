@@ -54,16 +54,16 @@ const SHOTS: readonly Shot[] = [
   },
   {
     // 下手からの寄り
-    position: new THREE.Vector3(-4.4, 1.7, 5.6),
-    target: new THREE.Vector3(0.2, 1.8, 0),
-    fov: 38,
+    position: new THREE.Vector3(-5.2, 2.6, 7.4),
+    target: new THREE.Vector3(0.1, 2.1, -1),
+    fov: 42,
     drift: (t) => new THREE.Vector3(Math.sin(t * 0.22) * 0.5, 0.15 + Math.sin(t * 0.3) * 0.15, 0),
   },
   {
     // 上手からのロー
-    position: new THREE.Vector3(4.8, 1.1, 5.2),
-    target: new THREE.Vector3(-0.2, 2.0, 0),
-    fov: 40,
+    position: new THREE.Vector3(5.4, 1.4, 6.8),
+    target: new THREE.Vector3(-0.1, 2.3, -1),
+    fov: 44,
     drift: (t) => new THREE.Vector3(-Math.sin(t * 0.19) * 0.6, Math.sin(t * 0.26) * 0.2, 0),
   },
   {
@@ -111,19 +111,13 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
       const pulse = analysis.beatPulseAt(t, 1)
       const bar = analysis.barAt(t)
       const low = analysis.envelopeAt('low', t)
+      const mid = analysis.envelopeAt('mid', t)
       const high = analysis.envelopeAt('high', t)
       const rms = analysis.envelopeAt('rms', t)
       const onset = analysis.envelopeAt('onset', t)
 
       // --- ステージ ---
-      stage.update(t)
-      // ライトバーをビートで光らせる。低音が強いほど強く。
-      for (const [index, bar2] of stage.lightBars.entries()) {
-        const material = bar2.material as THREE.MeshStandardNodeMaterial
-        const offsetPhase = (index % 4) * 0.05
-        const localPulse = analysis.beatPulseAt(t - offsetPhase, 1)
-        material.emissiveIntensity = 0.5 + localPulse * (2.5 + low * 4)
-      }
+      stage.update(t, { pulse, low, mid, high, rms, onset })
 
       // --- 被写体 ---
       // 低音に合わせてわずかに上下させると、板が生きて見える

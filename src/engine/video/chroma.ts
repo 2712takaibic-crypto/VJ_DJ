@@ -35,6 +35,12 @@ export type ChromaKeyParams = {
   readonly despill: number
   /** 全体の不透明度 */
   readonly opacity: number
+  /**
+   * 明るさの補正。
+   * 素材は明るい照明下で白い衣装を着ているため、そのまま出すと
+   * bloom と合わさって白飛びする。1 未満で落として使う。
+   */
+  readonly brightness: number
 }
 
 /**
@@ -50,6 +56,7 @@ export const DEFAULT_CHROMA_KEY: ChromaKeyParams = {
   outerTolerance: 0.22,
   despill: 0.85,
   opacity: 1,
+  brightness: 0.78,
 }
 
 export type ChromaKeyMaterial = {
@@ -80,6 +87,7 @@ export const createChromaKeyMaterial = (
   const outerU = uniform(float(params.outerTolerance))
   const despillU = uniform(float(params.despill))
   const opacityU = uniform(float(params.opacity))
+  const brightnessU = uniform(float(params.brightness))
   const matteViewU = uniform(float(0))
 
   const src = texture(map, uv())
@@ -119,7 +127,7 @@ export const createChromaKeyMaterial = (
   // 透過は opacityNode に別途与える必要がある。
   // ここを vec4 の colorNode だけで済ませようとすると、
   // 「マットは正しく出ているのに一切抜けない」という状態になる。
-  material.colorNode = mix(despilled, vec3(alpha), matteViewU)
+  material.colorNode = mix(despilled.mul(brightnessU), vec3(alpha), matteViewU)
   material.opacityNode = mix(alpha.mul(opacityU), float(1), matteViewU)
 
   return {
@@ -133,6 +141,7 @@ export const createChromaKeyMaterial = (
       if (next.outerTolerance !== undefined) outerU.value = next.outerTolerance
       if (next.despill !== undefined) despillU.value = next.despill
       if (next.opacity !== undefined) opacityU.value = next.opacity
+      if (next.brightness !== undefined) brightnessU.value = next.brightness
     },
 
     setMatteView: (enabled) => {
