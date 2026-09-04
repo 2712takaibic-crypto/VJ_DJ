@@ -66,6 +66,7 @@ export type ShowParams = {
   readonly wall: WallParams
   readonly camera: CameraParams
   readonly particles: { readonly enabled: boolean; readonly intensity: number }
+  readonly lightning: { readonly enabled: boolean; readonly intensity: number }
 }
 
 export const DEFAULT_SHOW_PARAMS: ShowParams = {
@@ -83,6 +84,7 @@ export const DEFAULT_SHOW_PARAMS: ShowParams = {
   wall: { hue: 0.62, hueRange: 0.16, brightness: 1 },
   camera: { mode: 'auto', shotIndex: 0, barsPerShot: 4 },
   particles: { enabled: true, intensity: 1 },
+  lightning: { enabled: true, intensity: 1 },
 }
 
 /** 部分適用。ネストした階層をまとめて上書きせず、指定された値だけ差し替える */
@@ -98,4 +100,5 @@ export const applyParamsPatch = (base: ShowParams, patch: ShowParamsPatch): Show
   wall: { ...base.wall, ...patch.wall },
   camera: { ...base.camera, ...patch.camera },
   particles: { ...base.particles, ...patch.particles },
+  lightning: { ...base.lightning, ...patch.lightning },
 })

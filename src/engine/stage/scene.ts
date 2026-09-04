@@ -1,6 +1,7 @@
 import * as THREE from 'three/webgpu'
 import { float, uniform, uv, vec2, vec3 } from 'three/tsl'
 import { createLaserRig, type LaserRig } from './lasers'
+import { createLightningRig, type LightningRig } from './lightning'
 import { createParticleField, type ParticleField } from './particles'
 
 /**
@@ -24,18 +25,23 @@ export type StageAudio = {
   readonly high: number
   readonly rms: number
   readonly onset: number
+  /** 現在の拍番号 (整数)。電撃の形状を決定的に生成するのに使う */
+  readonly beatIndex: number
+  /** 拍内の位相 0〜1 */
+  readonly beatPhase: number
 }
 
 export type StageControls = {
   readonly lasers: { readonly intensity: number; readonly sweep: number; readonly enabled: boolean }
   readonly wall: { readonly hue: number; readonly hueRange: number; readonly brightness: number }
   readonly particles: { readonly enabled: boolean; readonly intensity: number }
+  readonly lightning: { readonly enabled: boolean; readonly intensity: number }
 }
 
 export type Stage = {
   readonly root: THREE.Group
   readonly performerAnchor: THREE.Group
-  update(t: number, audio: StageAudio, controls: StageControls): void
+  update(t: number, audio: StageAudio, controls: StageControls, camera: THREE.Camera): void
   dispose(): void
 }
 
@@ -145,6 +151,8 @@ export const createStage = (): Stage => {
   root.add(lasers.object)
   const particles: ParticleField = createParticleField()
   root.add(particles.object)
+  const lightning: LightningRig = createLightningRig()
+  root.add(lightning.object)
 
   // ---------- 照明 ----------
   const ambient = new THREE.AmbientLight(0x2c3a58, 0.7)
@@ -172,7 +180,7 @@ export const createStage = (): Stage => {
     root,
     performerAnchor,
 
-    update: (t, audio, controls) => {
+    update: (t, audio, controls, camera) => {
       // ライトバー: 1 本ずつ位相をずらして波が走るように
       for (const [index, bar] of lightBars.entries()) {
         const material = bar.material as THREE.MeshBasicNodeMaterial
@@ -218,6 +226,17 @@ export const createStage = (): Stage => {
         particles.update(t, audio.rms * controls.particles.intensity)
       }
 
+      lightning.object.visible = controls.lightning.enabled
+      if (controls.lightning.enabled) {
+        lightning.update(
+          t,
+          audio.beatIndex,
+          audio.beatPhase,
+          Math.min(1, (audio.onset * 0.7 + audio.rms * 0.5) * controls.lightning.intensity),
+          camera,
+        )
+      }
+
       // 照明を揺らす
       key.position.x = Math.sin(t * 0.33) * 2.6
       key.intensity = 90 + audio.rms * 90
@@ -229,6 +248,7 @@ export const createStage = (): Stage => {
     dispose: () => {
       lasers.dispose()
       particles.dispose()
+      lightning.dispose()
       for (const resource of owned) resource.dispose()
       owned.length = 0
     },

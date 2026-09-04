@@ -139,8 +139,23 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
       // --- ステージ ---
       stage.update(
         t,
-        { pulse, low, mid, high, rms, onset },
-        { lasers: params.lasers, wall: params.wall, particles: params.particles },
+        {
+          pulse,
+          low,
+          mid,
+          high,
+          rms,
+          onset,
+          beatIndex: analysis.beatIndexAt(t),
+          beatPhase: analysis.beatPhaseAt(t),
+        },
+        {
+          lasers: params.lasers,
+          wall: params.wall,
+          particles: params.particles,
+          lightning: params.lightning,
+        },
+        camera,
       )
 
       // --- 被写体 ---
