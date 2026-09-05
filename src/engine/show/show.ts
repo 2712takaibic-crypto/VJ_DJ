@@ -184,14 +184,26 @@ export const createShow = async (renderer: StageRenderer, assets: ShowAssets): P
         params.camera.mode === 'manual'
           ? (SHOTS[params.camera.shotIndex % SHOTS.length] ?? SHOTS[0]!)
           : shotForBar(bar, params.camera.barsPerShot)
-      const drift = shot.drift(t)
-      camera.fov = shot.fov
-      camera.position.set(
-        shot.position.x + drift.x,
-        shot.position.y + drift.y,
-        shot.position.z + drift.z,
-      )
-      camera.lookAt(shot.target)
+      if (params.camera.mode === 'free') {
+        // Output ウィンドウで直接操作した画角をそのまま使う。
+        // ドリフトも掛けない。狙って決めた構図を勝手に動かさない。
+        camera.fov = params.camera.fov
+        camera.position.set(
+          params.camera.position.x,
+          params.camera.position.y,
+          params.camera.position.z,
+        )
+        camera.lookAt(params.camera.target.x, params.camera.target.y, params.camera.target.z)
+      } else {
+        const drift = shot.drift(t)
+        camera.fov = shot.fov
+        camera.position.set(
+          shot.position.x + drift.x,
+          shot.position.y + drift.y,
+          shot.position.z + drift.z,
+        )
+        camera.lookAt(shot.target)
+      }
       camera.updateProjectionMatrix()
 
       // --- ポストプロセス ---

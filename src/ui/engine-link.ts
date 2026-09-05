@@ -47,6 +47,16 @@ export type EngineLink = {
   seqBpm(bpm: number): void
   seqStep(track: number, step: number, velocity: number): void
   seqMute(track: number, muted: boolean): void
+
+  // --- 配置の編集 ---
+  editorEnabled(enabled: boolean): void
+  editorTarget(target: 'lasers' | 'lightning' | 'bursts' | 'performer'): void
+  onEditorState(
+    handler: (state: {
+      enabled: boolean
+      target: 'lasers' | 'lightning' | 'bursts' | 'performer'
+    }) => void,
+  ): () => void
   /** 状態が届くたびに呼ばれる (約 10Hz) */
   onState(handler: (state: EngineState) => void): () => void
   /** プレビュー画像が届くたびに呼ばれる。使い終えたら close すること */
@@ -59,6 +69,9 @@ export const connectEngine = async (): Promise<EngineLink> => {
   const stateHandlers = new Set<(state: EngineState) => void>()
   const previewHandlers = new Set<(bitmap: ImageBitmap) => void>()
   const djHandlers = new Set<(state: DjStatePayload) => void>()
+  const editorHandlers = new Set<
+    (state: { enabled: boolean; target: 'lasers' | 'lightning' | 'bursts' | 'performer' }) => void
+  >()
 
   port.onmessage = (event: MessageEvent<EngineToControl>) => {
     const message = event.data
@@ -86,6 +99,12 @@ export const connectEngine = async (): Promise<EngineLink> => {
       }
       case 'djState': {
         for (const handler of djHandlers) handler(message.state)
+        return
+      }
+      case 'editorState': {
+        for (const handler of editorHandlers) {
+          handler({ enabled: message.enabled, target: message.target })
+        }
         return
       }
       default:
@@ -163,6 +182,17 @@ export const connectEngine = async (): Promise<EngineLink> => {
     },
     seqMute: (track, muted) => {
       send({ t: 'seqMute', track, muted })
+    },
+
+    editorEnabled: (enabled) => {
+      send({ t: 'editorEnabled', enabled })
+    },
+    editorTarget: (target) => {
+      send({ t: 'editorTarget', target })
+    },
+    onEditorState: (handler) => {
+      editorHandlers.add(handler)
+      return () => editorHandlers.delete(handler)
     },
 
     onDjState: (handler) => {

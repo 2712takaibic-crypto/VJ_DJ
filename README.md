@@ -15,6 +15,7 @@
 | 音楽同期 | ✅ BPM・ビートグリッド・帯域別エンベロープに追従 |
 | mp4 書き出し | ✅ 決定的なオフラインレンダリング + 音声多重化 |
 | MCP からの操作 | ✅ AI が画を見ながら調整できる |
+| 配置の編集 | ✅ Output ウィンドウでカメラ操作 + ギズモ |
 | 人間向け UI | ✅ プレビュー / トランスポート / パラメータ操作 |
 | 汎用メディア取り込み | ✅ 任意の音声/映像を取り込んで差し替え可能 |
 | DJ 機能 | ✅ 2デッキ / 3バンドEQ / クロスフェーダー / サンプラー |
@@ -87,6 +88,7 @@ VJDJ を起動した状態で、プロンプトで指示できる。
 
 提供ツール: `get_state` `capture` `set_chroma` `set_performer` `set_bloom`
 `set_lasers` `set_lightning` `set_bursts` `set_wall` `set_camera` `set_particles`
+`set_placement` `set_camera_free` `set_editor`
 `set_video_source` `set_audio_source` `seek` `set_playing`
 
 ## 開発

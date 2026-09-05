@@ -68,6 +68,10 @@ export type BurstField = {
     interval: number,
     energy: number,
     camera: THREE.Camera,
+    placement: {
+      readonly origin: { readonly x: number; readonly y: number; readonly z: number }
+      readonly spread: number
+    },
   ): void
   dispose(): void
 }
@@ -85,16 +89,12 @@ export type BurstOptions = {
   readonly slots?: number
   /** 何拍ごとに弾けるか。4 なら小節頭 */
   readonly everyBeats?: number
-  readonly spread?: number
-  readonly height?: number
 }
 
 export const createBurstField = (options: BurstOptions): BurstField => {
   const style = options.style
   const slots = options.slots ?? 3
   const everyBeats = options.everyBeats ?? 4
-  const spread = options.spread ?? 7
-  const height = options.height ?? 1.6
 
   const root = new THREE.Group()
   const map = fxTexture(style.texture)
@@ -146,7 +146,7 @@ export const createBurstField = (options: BurstOptions): BurstField => {
   return {
     object: root,
 
-    update: (beatIndex, beatPhase, interval, energy, camera) => {
+    update: (beatIndex, beatPhase, interval, energy, camera, placement) => {
       // 直近の区切り拍。everyBeats=4 なら小節頭で弾ける。
       const triggerBeat = Math.floor(beatIndex / everyBeats) * everyBeats
       const baseAge = (beatIndex - triggerBeat + beatPhase) * interval
@@ -172,9 +172,11 @@ export const createBurstField = (options: BurstOptions): BurstField => {
         const size = style.sizeStart + (style.sizeEnd - style.sizeStart) * lifeRatio
         scale.set(size, size, 1)
 
-        const originX = (hash(triggerBeat, slot * 17 + 1) - 0.5) * spread
-        const originY = height + hash(triggerBeat, slot * 17 + 2) * 1.6
-        const originZ = (hash(triggerBeat, slot * 17 + 3) - 0.5) * spread * 0.6 - 1
+        const originX =
+          placement.origin.x + (hash(triggerBeat, slot * 17 + 1) - 0.5) * placement.spread
+        const originY = placement.origin.y + hash(triggerBeat, slot * 17 + 2) * 1.6
+        const originZ =
+          placement.origin.z + (hash(triggerBeat, slot * 17 + 3) - 0.5) * placement.spread * 0.6
 
         for (let i = 0; i < style.particlesPerBurst; i++) {
           // 球状にばらけさせる。決定的な擬似乱数から方向を作る。

@@ -30,6 +30,10 @@ export type LightningRig = {
     beatPhase: number,
     energy: number,
     camera: THREE.Camera,
+    placement: {
+      readonly origin: { readonly x: number; readonly y: number; readonly z: number }
+      readonly spread: number
+    },
   ): void
   dispose(): void
 }
@@ -37,8 +41,6 @@ export type LightningRig = {
 export type LightningOptions = {
   readonly count?: number
   readonly segments?: number
-  readonly top?: number
-  readonly spread?: number
   readonly width?: number
 }
 
@@ -53,8 +55,6 @@ const hash = (a: number, b: number): number => {
 export const createLightningRig = (options: LightningOptions = {}): LightningRig => {
   const count = options.count ?? 6
   const segments = options.segments ?? 22
-  const top = options.top ?? 9.5
-  const spread = options.spread ?? 11
   const width = options.width ?? 0.2
 
   const root = new THREE.Group()
@@ -70,6 +70,7 @@ export const createLightningRig = (options: LightningOptions = {}): LightningRig
   }
 
   const bolts: Bolt[] = []
+  let lastPlacementKey = ''
 
   for (let i = 0; i < count; i++) {
     // リボン: セグメントごとに 2 頂点、三角形は 2 枚
@@ -118,9 +119,17 @@ export const createLightningRig = (options: LightningOptions = {}): LightningRig
   }
 
   /** 拍番号とスロット番号から稲妻の形を作る。同じ入力なら必ず同じ形。 */
-  const buildBolt = (bolt: Bolt, beatIndex: number, slot: number): void => {
-    const originX = (hash(beatIndex, slot * 7 + 1) - 0.5) * spread
-    const originZ = (hash(beatIndex, slot * 7 + 2) - 0.5) * 6 + 1.5
+  const buildBolt = (
+    bolt: Bolt,
+    beatIndex: number,
+    slot: number,
+    place: {
+      readonly origin: { readonly x: number; readonly y: number; readonly z: number }
+      readonly spread: number
+    },
+  ): void => {
+    const originX = place.origin.x + (hash(beatIndex, slot * 7 + 1) - 0.5) * place.spread
+    const originZ = place.origin.z + (hash(beatIndex, slot * 7 + 2) - 0.5) * 6
     const driftX = (hash(beatIndex, slot * 7 + 3) - 0.5) * 3.2
     const bottom = 0.2 + hash(beatIndex, slot * 7 + 4) * 1.5
 
@@ -136,7 +145,7 @@ export const createLightningRig = (options: LightningOptions = {}): LightningRig
       // 上から下へ。途中を横に振ってギザギザにする。
       const jitter = (hash(beatIndex * 31 + s, slot) - 0.5) * 1.5 * (1 - v * 0.55)
       const x = driftX * v + jitter
-      const y = top + (bottom - top) * v
+      const y = place.origin.y + (bottom - place.origin.y) * v
 
       // リボンの幅。先端へ向かって細くする。
       const halfWidth = width * (1 - v * 0.6)
@@ -156,8 +165,9 @@ export const createLightningRig = (options: LightningOptions = {}): LightningRig
   return {
     object: root,
 
-    update: (t, beatIndex, beatPhase, energy, camera) => {
+    update: (t, beatIndex, beatPhase, energy, camera, placement) => {
       void t
+      const placementKey = `${String(placement.origin.x)},${String(placement.origin.y)},${String(placement.origin.z)},${String(placement.spread)}`
       for (const [slot, bolt] of bolts.entries()) {
         // この拍でこのスロットが光るか。
         //
@@ -176,7 +186,10 @@ export const createLightningRig = (options: LightningOptions = {}): LightningRig
         }
         bolt.group.visible = true
 
-        if (bolt.builtForBeat !== beatIndex) buildBolt(bolt, beatIndex, slot)
+        // 配置が変わったら作り直す。ギズモで動かした結果を即座に反映するため。
+        if (bolt.builtForBeat !== beatIndex || placementKey !== lastPlacementKey) {
+          buildBolt(bolt, beatIndex, slot, placement)
+        }
 
         // 拍頭で最大、急速に消える。稲妻は尾を引かない。
         // 物理的には一瞬だが、30fps で 2 フレームしか出ないと
@@ -191,6 +204,7 @@ export const createLightningRig = (options: LightningOptions = {}): LightningRig
         const dz = camera.position.z - bolt.group.position.z
         bolt.group.rotation.y = Math.atan2(dx, dz)
       }
+      lastPlacementKey = placementKey
     },
 
     dispose: () => {

@@ -17,10 +17,15 @@ import { float, uniform, uv, vec3 } from 'three/tsl'
  * 手前のビームに隠れて不自然になる。
  */
 
+export type LaserPlacement = {
+  readonly origin: { readonly x: number; readonly y: number; readonly z: number }
+  readonly radius: number
+}
+
 export type LaserRig = {
   readonly object: THREE.Object3D
   /** `t` から決定的に導出するので、書き出しでも同じ絵になる */
-  update(t: number, intensity: number, sweep: number): void
+  update(t: number, intensity: number, sweep: number, placement: LaserPlacement): void
   dispose(): void
 }
 
@@ -38,7 +43,13 @@ export const createLaserRig = (options: LaserOptions = {}): LaserRig => {
   const length = options.length ?? 20
 
   const root = new THREE.Group()
-  const beams: { pivot: THREE.Group; strength: ReturnType<typeof uniform>; seed: number }[] = []
+  const beams: {
+    pivot: THREE.Group
+    strength: ReturnType<typeof uniform>
+    seed: number
+    /** 円周上の配置角。半径を変えるときに再計算するため保持する */
+    angle: number
+  }[] = []
 
   // 細く保つ。太いと管に見える。
   const geometry = new THREE.CylinderGeometry(0.015, 0.075, length, 14, 1, true)
@@ -74,7 +85,7 @@ export const createLaserRig = (options: LaserOptions = {}): LaserRig => {
     pivot.add(mesh)
     root.add(pivot)
 
-    beams.push({ pivot, strength, seed: i * 1.7 })
+    beams.push({ pivot, strength, seed: i * 1.7, angle })
   }
 
   const materials = beams.map((b) => (b.pivot.children[0] as THREE.Mesh).material as THREE.Material)
@@ -82,8 +93,14 @@ export const createLaserRig = (options: LaserOptions = {}): LaserRig => {
   return {
     object: root,
 
-    update: (t, intensity, sweep) => {
+    update: (t, intensity, sweep, placement) => {
       for (const beam of beams) {
+        // 配置は毎フレーム反映する。UI やギズモで動かせるようにするため。
+        beam.pivot.position.set(
+          placement.origin.x + Math.cos(beam.angle) * placement.radius,
+          placement.origin.y,
+          placement.origin.z + Math.sin(beam.angle) * placement.radius,
+        )
         // 各ビームを別位相で振る。全部同じ動きだと機械的に見える。
         const phase = t * sweep + beam.seed
         // ジオメトリは既に -Y へ伸びているので反転しない。

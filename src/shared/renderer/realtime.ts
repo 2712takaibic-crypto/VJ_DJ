@@ -106,6 +106,12 @@ export type ControlToEngine =
       readonly velocity: number
     }
   | { readonly t: 'seqMute'; readonly track: number; readonly muted: boolean }
+  // --- 編集モード (Output ウィンドウでのカメラ操作とギズモ) ---
+  | { readonly t: 'editorEnabled'; readonly enabled: boolean }
+  | {
+      readonly t: 'editorTarget'
+      readonly target: 'lasers' | 'lightning' | 'bursts' | 'performer'
+    }
 
 export type EngineToControl =
   | {
@@ -128,3 +134,9 @@ export type EngineToControl =
   | { readonly t: 'preview'; readonly seq: number; readonly bitmap: ImageBitmap }
   /** DJ セクションの状態 */
   | { readonly t: 'djState'; readonly state: DjStatePayload }
+  /** 編集モードの状態 */
+  | {
+      readonly t: 'editorState'
+      readonly enabled: boolean
+      readonly target: 'lasers' | 'lightning' | 'bursts' | 'performer'
+    }

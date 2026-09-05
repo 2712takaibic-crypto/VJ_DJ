@@ -1,6 +1,7 @@
 import type { StageRenderer } from './stage/renderer'
 import type { Show } from './show/show'
 import type { ShowParams, ShowParamsPatch } from '@shared/protocol/show-params'
+import type { EditorTarget, StageEditor } from './editor'
 
 /**
  * 外部からショーを操作するための窓口。
@@ -35,6 +36,11 @@ export type ShowController = {
   setVideoSource(framesBaseUrl: string): Promise<ControlState>
   /** 音源を差し替える */
   setAudioSource(analysisUrl: string): Promise<ControlState>
+  /**
+   * 編集モード。Output ウィンドウのカメラ操作とギズモを有効にする。
+   * MCP からも呼べるようにしてあるので、AI が画角と配置を詰められる。
+   */
+  setEditor(enabled: boolean, target: EditorTarget | null): ControlState
 }
 
 declare global {
@@ -52,6 +58,7 @@ export type ControlHost = {
   isPlaying(): boolean
   setPlaying(playing: boolean): void
   shotCount: number
+  readonly editor: StageEditor
 }
 
 export const installController = (host: ControlHost): ShowController => {
@@ -71,6 +78,12 @@ export const installController = (host: ControlHost): ShowController => {
 
     setParams: (patch) => {
       host.show.patchParams(patch)
+      return buildState()
+    },
+
+    setEditor: (enabled, target) => {
+      host.editor.setEnabled(enabled)
+      if (target !== null) host.editor.setTarget(target)
       return buildState()
     },
 

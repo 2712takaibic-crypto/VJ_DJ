@@ -270,6 +270,83 @@ server.registerTool(
   },
 )
 
+server.registerTool(
+  'set_placement',
+  {
+    title: 'エフェクトの発生位置を指定',
+    description:
+      'エフェクトの位置は乱数ではなく拍のハッシュから決まるが、' +
+      '中心位置と広がりはここで指定できる。' +
+      '変えたら capture で必ず結果を確認すること。',
+    inputSchema: {
+      target: z.enum(['lasers', 'lightning', 'bursts']).describe('対象'),
+      x: z.number().min(-20).max(20).optional().describe('中心の左右'),
+      y: z.number().min(-5).max(20).optional().describe('中心の高さ'),
+      z: z.number().min(-20).max(20).optional().describe('中心の奥行き'),
+      spread: z.number().min(0).max(24).optional().describe('広がり (lightning / bursts)'),
+      radius: z.number().min(0.5).max(20).optional().describe('円の半径 (lasers)'),
+    },
+  },
+  async ({ target, x, y, z, spread, radius }) => {
+    const state = await call('/state')
+    const current = state.params[target].origin
+    const origin = { x: x ?? current.x, y: y ?? current.y, z: z ?? current.z }
+    const patch = { [target]: { origin } }
+    if (spread !== undefined && target !== 'lasers') patch[target].spread = spread
+    if (radius !== undefined && target === 'lasers') patch[target].radius = radius
+    const next = await call('/params', patch)
+    return { content: [{ type: 'text', text: JSON.stringify(next.params[target], null, 2) }] }
+  },
+)
+
+server.registerTool(
+  'set_camera_free',
+  {
+    title: 'カメラを自由に置く',
+    description:
+      'カメラの位置と注視点を直接指定する。mode は free になり、' +
+      'ショットの自動切替は止まる。auto へ戻すには set_camera を使う。',
+    inputSchema: {
+      px: z.number().describe('カメラの X'),
+      py: z.number().describe('カメラの Y'),
+      pz: z.number().describe('カメラの Z'),
+      tx: z.number().optional().describe('注視点の X (既定 0)'),
+      ty: z.number().optional().describe('注視点の Y (既定 2.3)'),
+      tz: z.number().optional().describe('注視点の Z (既定 0)'),
+      fov: z.number().min(15).max(100).optional().describe('画角'),
+    },
+  },
+  async ({ px, py, pz, tx, ty, tz, fov }) => {
+    const state = await call('/params', {
+      camera: {
+        mode: 'free',
+        position: { x: px, y: py, z: pz },
+        target: { x: tx ?? 0, y: ty ?? 2.3, z: tz ?? 0 },
+        ...(fov === undefined ? {} : { fov }),
+      },
+    })
+    return { content: [{ type: 'text', text: JSON.stringify(state.params.camera, null, 2) }] }
+  },
+)
+
+server.registerTool(
+  'set_editor',
+  {
+    title: '編集モード (ギズモ) の切り替え',
+    description:
+      'Output ウィンドウでカメラ操作とギズモを有効にする。' +
+      '人が手で位置を詰めるための機能で、AI は set_placement を使う方が確実。',
+    inputSchema: {
+      enabled: z.boolean(),
+      target: z.enum(['lasers', 'lightning', 'bursts', 'performer']).optional(),
+    },
+  },
+  async ({ enabled, target }) => {
+    await call('/editor', { enabled, target: target ?? '' })
+    return { content: [{ type: 'text', text: enabled ? '編集モード ON' : '編集モード OFF' }] }
+  },
+)
+
 // ---------------------------------------------------------------- 素材
 
 server.registerTool(

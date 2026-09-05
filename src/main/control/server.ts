@@ -95,6 +95,13 @@ export const startControlServer = async (
       callRenderer(engineWindow, 'setVideoSource', [readString(body, 'url')]),
     '/setAudioSource': (body) =>
       callRenderer(engineWindow, 'setAudioSource', [readString(body, 'url')]),
+    '/editor': (body) => {
+      const target = readString(body, 'target')
+      return callRenderer(engineWindow, 'setEditor', [
+        readBoolean(body, 'enabled'),
+        target === '' ? null : target,
+      ])
+    },
     '/capture': (body) => {
       const seconds =
         asRecord(body)['seconds'] === undefined ? null : readNumber(body, 'seconds', 0)

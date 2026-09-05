@@ -34,12 +34,21 @@ export type StageAudio = {
   readonly beatInterval: number
 }
 
+type Vec3 = { readonly x: number; readonly y: number; readonly z: number }
+type Placement = { readonly origin: Vec3; readonly spread: number }
+
 export type StageControls = {
-  readonly lasers: { readonly intensity: number; readonly sweep: number; readonly enabled: boolean }
+  readonly lasers: {
+    readonly intensity: number
+    readonly sweep: number
+    readonly enabled: boolean
+    readonly origin: Vec3
+    readonly radius: number
+  }
   readonly wall: { readonly hue: number; readonly hueRange: number; readonly brightness: number }
   readonly particles: { readonly enabled: boolean; readonly intensity: number }
-  readonly lightning: { readonly enabled: boolean; readonly intensity: number }
-  readonly bursts: { readonly enabled: boolean; readonly intensity: number }
+  readonly lightning: { readonly enabled: boolean; readonly intensity: number } & Placement
+  readonly bursts: { readonly enabled: boolean; readonly intensity: number } & Placement
 }
 
 export type Stage = {
@@ -161,13 +170,7 @@ export const createStage = (): Stage => {
   // fx-editor の explosion / spark プリセットを参考にしたバースト
   const explosions: BurstField = createBurstField({ style: EXPLOSION, slots: 3, everyBeats: 8 })
   root.add(explosions.object)
-  const sparks: BurstField = createBurstField({
-    style: SPARK,
-    slots: 4,
-    everyBeats: 4,
-    spread: 9,
-    height: 2.2,
-  })
+  const sparks: BurstField = createBurstField({ style: SPARK, slots: 4, everyBeats: 4 })
   root.add(sparks.object)
 
   // ---------- 照明 ----------
@@ -235,6 +238,7 @@ export const createStage = (): Stage => {
           t,
           (0.35 + audio.high * 0.5 + audio.pulse * 0.5) * controls.lasers.intensity,
           controls.lasers.sweep,
+          { origin: controls.lasers.origin, radius: controls.lasers.radius },
         )
       }
       particles.object.visible = controls.particles.enabled
@@ -250,8 +254,24 @@ export const createStage = (): Stage => {
           1,
           (audio.rms * 0.7 + audio.onset * 0.5) * controls.bursts.intensity,
         )
-        explosions.update(audio.beatIndex, audio.beatPhase, audio.beatInterval, burstEnergy, camera)
-        sparks.update(audio.beatIndex, audio.beatPhase, audio.beatInterval, burstEnergy, camera)
+        const burstPlace = { origin: controls.bursts.origin, spread: controls.bursts.spread }
+        explosions.update(
+          audio.beatIndex,
+          audio.beatPhase,
+          audio.beatInterval,
+          burstEnergy,
+          camera,
+          burstPlace,
+        )
+        // 火花は爆発より少し高く広く散らす
+        sparks.update(audio.beatIndex, audio.beatPhase, audio.beatInterval, burstEnergy, camera, {
+          origin: {
+            x: burstPlace.origin.x,
+            y: burstPlace.origin.y + 0.8,
+            z: burstPlace.origin.z,
+          },
+          spread: burstPlace.spread * 1.25,
+        })
       }
 
       lightning.object.visible = controls.lightning.enabled
@@ -262,6 +282,7 @@ export const createStage = (): Stage => {
           audio.beatPhase,
           Math.min(1, (audio.onset * 0.7 + audio.rms * 0.5) * controls.lightning.intensity),
           camera,
+          { origin: controls.lightning.origin, spread: controls.lightning.spread },
         )
       }
 

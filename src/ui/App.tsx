@@ -5,6 +5,7 @@ import { Section, Slider, Toggle } from './controls'
 import { Library } from './library'
 import { DjPanel } from './dj'
 import { SequencerPanel } from './sequencer'
+import { EditorPanel } from './editor-panel'
 
 /**
  * Control Window。
@@ -156,6 +157,8 @@ export const App = (): JSX.Element => {
 
         {link !== null && <DjPanel link={link} />}
         {link !== null && <SequencerPanel link={link} />}
+
+        {link !== null && <EditorPanel link={link} params={p} />}
 
         <Section title="クロマキー">
           <Slider

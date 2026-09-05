@@ -7,6 +7,7 @@ import { createShow, SHOT_COUNT } from './show/show'
 import { installController } from './control'
 import { createPreviewPublisher } from './preview'
 import { createDj } from './audio/dj'
+import { createStageEditor } from './editor'
 
 /**
  * Engine Host のエントリポイント。
@@ -47,6 +48,7 @@ type EngineHandlers = {
   onSetAudio?: (message: Extract<ControlToEngine, { t: 'setAudio' }>) => void
   /** DJ 関連はまとめて 1 つのハンドラで受ける。種類が多く、個別に生やすと冗長になる */
   onDj?: (message: ControlToEngine) => void
+  onEditor?: (message: ControlToEngine) => void
 }
 
 const handlers: EngineHandlers = {}
@@ -82,6 +84,10 @@ const handle = (port: MessagePort, message: ControlToEngine): void => {
       return
     case 'setAudio':
       handlers.onSetAudio?.(message)
+      return
+    case 'editorEnabled':
+    case 'editorTarget':
+      handlers.onEditor?.(message)
       return
     default:
       // 残りは DJ 関連
@@ -145,10 +151,14 @@ const start = async (): Promise<void> => {
   let playing = true
   let lastNow = performance.now()
 
+  // 編集モード。Output ウィンドウで直接カメラを回し、ギズモで発生位置を掴む。
+  const editor = createStageEditor(renderer.camera, renderer.scene, canvas)
+
   installController({
     show,
     renderer,
     canvas,
+    editor,
     getTime: () => showTime,
     setTime: (seconds) => {
       showTime = seconds
@@ -197,6 +207,11 @@ const start = async (): Promise<void> => {
 
   let lastStateSent = 0
   let measuredFps = 0
+
+  handlers.onEditor = (message) => {
+    if (message.t === 'editorEnabled') editor.setEnabled(message.enabled)
+    else if (message.t === 'editorTarget') editor.setTarget(message.target)
+  }
 
   // --- DJ セクション ---
   // AudioContext は自動再生制限で suspended から始まることがある。
@@ -289,6 +304,13 @@ const start = async (): Promise<void> => {
       }
     }
 
+    // 編集モードの操作をパラメータへ書き戻す。
+    // ギズモ・UI・MCP がすべて同じ ShowParams を触る形を保つ。
+    editor.sync(show.getParams())
+    editor.update()
+    const editorPatch = editor.takeChanges()
+    if (editorPatch !== null) show.patchParams(editorPatch)
+
     preview.publish(canvas, now)
 
     // 状態は 10Hz で足りる。UI の表示を合わせるだけなので
@@ -332,6 +354,13 @@ const start = async (): Promise<void> => {
         },
       }
       port.postMessage(djMessage)
+
+      const editorMessage: EngineToControl = {
+        t: 'editorState',
+        enabled: editor.isEnabled(),
+        target: editor.getTarget(),
+      }
+      port.postMessage(editorMessage)
     }
 
     frames++

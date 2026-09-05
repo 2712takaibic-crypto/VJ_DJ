@@ -108,21 +108,37 @@ const toDisplayInfo = (display: Electron.Display, primaryId: number): DisplayInf
 
 export const createWindowManager = (): WindowManager => {
   const primary = screen.getPrimaryDisplay()
+  const displays = screen.getAllDisplays()
+  const secondary = displays.find((d) => d.id !== primary.id)
 
+  // 操作画面はプライマリの作業領域いっぱいに開く。
+  // ここが編集画面であり、常に見えていてほしい。
+  const controlBounds = primary.workArea
   const control = createWindow('control', {
-    width: 1440,
-    height: 900,
+    x: controlBounds.x,
+    y: controlBounds.y,
+    width: Math.min(1600, controlBounds.width),
+    height: Math.min(1000, controlBounds.height),
     title: 'VJDJ — Control',
     backgroundColor: '#101014',
   })
 
+  // 出力は 2 画面目があればそちらへ。VJ の本来の使い方であり、
+  // 同じ画面に重ねると操作画面が隠れて「UI が無い」ように見える。
+  const engineBounds = secondary?.workArea
   const engine = createWindow('engine', {
-    width: 960,
-    height: 540,
-    x: primary.workArea.x + 80,
-    y: primary.workArea.y + 80,
+    x: engineBounds ? engineBounds.x + 40 : controlBounds.x + controlBounds.width - 700,
+    y: engineBounds ? engineBounds.y + 40 : controlBounds.y + controlBounds.height - 420,
+    width: 640,
+    height: 360,
     title: 'VJDJ — Output',
     backgroundColor: '#000000',
+  })
+
+  // 操作画面を手前に出す。後から作った出力ウィンドウが
+  // 前面に来たままだと編集できない。
+  control.once('ready-to-show', () => {
+    control.focus()
   })
 
   const byRole: Record<WindowRole, BrowserWindow> = { control, engine }
